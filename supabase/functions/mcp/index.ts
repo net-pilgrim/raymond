@@ -1865,7 +1865,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const queryKey = url.searchParams.get("apikey") || url.searchParams.get("token") || url.searchParams.get("key") || "";
+    const queryKey =
+      url.searchParams.get("apikey") ||
+      url.searchParams.get("token") ||
+      url.searchParams.get("key") ||
+      Deno.env.get("SUPABASE_ANON_KEY") ||
+      "";
     const html = getViewerHtml(supabaseUrl, queryKey);
     return new Response(html, {
       headers: {
