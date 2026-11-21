@@ -162,7 +162,8 @@ Raymond includes a modern, zero-dependency, standalone graphical browser for vis
 
 #### Option 1: Standalone Browser Viewer (Zero Runtime, Zero Dependencies)
 `viewer/index.html` is a 100% pure client-side single-page application. It runs directly in any modern web browser without requiring Python, Node.js, or local server processes.
-- **Open in browser**: Simply double-click `viewer/index.html` or run `xdg-open viewer/index.html` (`open viewer/index.html` on macOS).
+- **Universal 1-click launcher**: `./open-viewer.sh` (auto-detects Linux `xdg-open`, macOS `open`, WSL, or Windows `start`, plus auto-injects credentials if present).
+- **Direct open**: Double-click `viewer/index.html` or run `xdg-open viewer/index.html` / `open viewer/index.html` / `start viewer/index.html`.
 - **Direct Supabase Sync**: Connects directly from the browser to your Supabase PostgREST tables. Credentials are saved only in your browser's local storage.
 - **Offline Drag-and-Drop**: Drag and drop any `graph.json` file onto the window (or click the **Import JSON** button in the header) to view graphs without any database credentials.
 

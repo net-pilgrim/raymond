@@ -9,17 +9,22 @@ An interactive, zero-dependency graphical browser for multi-agent knowledge grap
 ### Option 1: Pure Client-Side in Any Web Browser (Zero Runtime)
 `viewer/index.html` is a 100% standalone single-page application. It requires **no Python, no Node.js, and no web server**.
 
-1. **Open directly in your browser**:
-   - Double-click `viewer/index.html` in your file manager, or run:
-     ```bash
-     # Linux
-     xdg-open viewer/index.html
-     # macOS
-     open viewer/index.html
-     # Windows
-     start viewer/index.html
-     ```
-   - Or open `file:///path/to/viewer/index.html` in Chrome, Safari, Firefox, or Edge.
+1. **Automatic 1-Click Launch (Universal Linux/WSL/macOS/Windows)**:
+   ```bash
+   ./open-viewer.sh
+   ```
+   *Auto-detects credentials from `.env` or MCP config, translates WSL/Linux paths, and opens your default browser via `xdg-open`, `open`, or `start`.*
+
+2. **Or Open Directly via Desktop Shell**:
+   ```bash
+   # Linux
+   xdg-open viewer/index.html
+   # macOS
+   open viewer/index.html
+   # Windows (CMD / PowerShell)
+   start viewer/index.html
+   ```
+   Or double-click `viewer/index.html` in your file explorer.
 2. **Connect or Explore**:
    - Click the **Settings** gear to enter your Supabase URL & Key (saved in browser `localStorage` only; connects directly to Supabase PostgREST).
    - Or click **Load Demo Graph** to explore immediately without credentials.
