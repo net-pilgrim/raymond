@@ -1785,7 +1785,7 @@ Deno.serve(async (req: Request) => {
 
   // 0. Graphical Knowledge Graph Viewer & Graph JSON API
   if (
-    req.method === "GET" &&
+    (req.method === "GET" || req.method === "HEAD") &&
     (pathname.endsWith("/viewer") ||
       pathname.endsWith("/graph") ||
       pathname.endsWith("/graph.json") ||
