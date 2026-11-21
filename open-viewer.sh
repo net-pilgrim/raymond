@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 # Raymond Knowledge Graph Viewer - Zero-Runtime Universal Browser Launcher
-# Supports:
+# Opens viewer/index.html directly in your default browser.
+# Works on:
 #   - Linux (xdg-open / sensible-browser)
 #   - WSL (Windows Subsystem for Linux via cmd.exe / explorer.exe)
 #   - macOS (open)
-#   - Windows Git Bash / Cygwin / MSYS (start)
+#   - Windows (Git Bash / Cygwin / MSYS via start)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VIEWER_HTML="${SCRIPT_DIR}/viewer/index.html"
 
-USE_LOCAL=false
-for arg in "$@"; do
-  if [ "$arg" = "--local" ] || [ "$arg" = "-l" ]; then
-    USE_LOCAL=true
-  fi
-done
+if [ ! -f "$VIEWER_HTML" ]; then
+  VIEWER_HTML="${SCRIPT_DIR}/index.html"
+fi
+
+if [ ! -f "$VIEWER_HTML" ]; then
+  echo "❌ Error: Could not find viewer/index.html" >&2
+  exit 1
+fi
 
 # Auto-detect optional Supabase credentials from .env or MCP config
 SUPABASE_URL=""
@@ -38,54 +41,41 @@ if [ -z "$SUPABASE_URL" ] && [ -f "$HOME/.gemini/config/mcp_config.json" ]; then
   fi
 fi
 
-# Determine target URL: prefer Live Serverless Edge Function viewer if available
-if [ "$USE_LOCAL" = false ] && [ -n "$SUPABASE_URL" ]; then
-  TARGET="${SUPABASE_URL}/functions/v1/mcp/viewer"
-  echo "🌐 Target: Live Serverless Edge Function Viewer"
-  echo "🔗 ${TARGET}"
-else
-  if [ ! -f "$VIEWER_HTML" ]; then
-    VIEWER_HTML="${SCRIPT_DIR}/index.html"
-  fi
-  QUERY=""
-  if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
-    QUERY="?url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
-  fi
-  TARGET="file://${VIEWER_HTML}${QUERY}"
-  echo "💻 Target: Local Client File Viewer"
-  echo "🔗 ${TARGET}"
+QUERY=""
+if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
+  QUERY="?url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
+  echo "✨ Auto-detected Supabase credentials: ${SUPABASE_URL}"
 fi
 
 echo "🕸️ Opening Raymond Knowledge Graph Viewer in your default browser..."
 
-# Detect environment and launch browser
+# Detect environment and launch browser with local HTML file (file://)
 if [[ -n "$WSL_DISTRO_NAME" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-  # WSL environment
-  if [[ "$TARGET" =~ ^https?:// ]]; then
-    (cmd.exe /c start "" "$TARGET" >/dev/null 2>&1 &)
-  elif command -v wslpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
+  # WSL environment: convert Linux path to Windows path for Windows browser
+  if command -v wslpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
     WIN_PATH=$(wslpath -m "$VIEWER_HTML")
     (cmd.exe /c start "" "file:${WIN_PATH}${QUERY}" >/dev/null 2>&1 &)
   elif command -v wslpath >/dev/null 2>&1 && command -v explorer.exe >/dev/null 2>&1; then
     WIN_PATH=$(wslpath -w "$VIEWER_HTML")
     (explorer.exe "$WIN_PATH" >/dev/null 2>&1 &)
   else
-    (xdg-open "$TARGET" >/dev/null 2>&1 &)
+    (xdg-open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS
-  (open "$TARGET" >/dev/null 2>&1 &)
+  (open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
 elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ "$OSTYPE" == "win32" ]]; then
   # Windows Git Bash / Cygwin
-  start "" "$TARGET"
+  start "" "file://${VIEWER_HTML}${QUERY}"
 elif command -v xdg-open >/dev/null 2>&1; then
   # Linux desktop
-  (xdg-open "$TARGET" >/dev/null 2>&1 &)
+  (xdg-open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
 elif command -v sensible-browser >/dev/null 2>&1; then
-  (sensible-browser "$TARGET" >/dev/null 2>&1 &)
+  (sensible-browser "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
 else
-  echo "⚠️ No desktop opener found. Open this link in your browser:"
-  echo "   ${TARGET}"
+  echo "⚠️ No desktop opener found. Open this file in your browser:"
+  echo "   file://${VIEWER_HTML}${QUERY}"
 fi
 
-echo "✅ Launched successfully!"
+echo "✅ Launched local browser viewer successfully!"
+echo "🔗 file://${VIEWER_HTML}${QUERY}"
