@@ -69,15 +69,13 @@ echo "🕸️ Opening Raymond Knowledge Graph Viewer in your default browser..."
 
 # Detect environment and launch browser
 if [[ -n "$WSL_DISTRO_NAME" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-  # WSL environment: escape & as ^& for cmd.exe
+  # WSL environment: run from /mnt/c so cmd.exe has valid local working directory
   if [ "$USE_LOCAL" = true ] && command -v wslpath >/dev/null 2>&1; then
-    WIN_PATH=$(wslpath -m "$VIEWER_HTML")
-    LOCAL_TARGET="file://${WIN_PATH}${QUERY}"
-    ESCAPED_TARGET="${LOCAL_TARGET//&/^&}"
-    (cmd.exe /c start "" "$ESCAPED_TARGET" >/dev/null 2>&1 &)
+    WIN_PATH=$(wslpath -w "$VIEWER_HTML")
+    LOCAL_TARGET="file:///${WIN_PATH//\\//}${QUERY}"
+    (cd /mnt/c && cmd.exe /c start "" "$LOCAL_TARGET" >/dev/null 2>&1 &)
   else
-    ESCAPED_TARGET="${TARGET//&/^&}"
-    (cmd.exe /c start "" "$ESCAPED_TARGET" >/dev/null 2>&1 &)
+    (cd /mnt/c && cmd.exe /c start "" "$TARGET" >/dev/null 2>&1 &)
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS

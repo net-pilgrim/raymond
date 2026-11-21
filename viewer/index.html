@@ -290,29 +290,6 @@
   <!-- Graph Canvas Container -->
   <div id="graphContainer" class="flex-1 w-full h-full"></div>
 
-  <!-- Empty State Overlay when unauthenticated / no data loaded -->
-  <div id="emptyStateOverlay" class="hidden absolute inset-0 top-14 z-20 flex flex-col items-center justify-center pointer-events-auto bg-dark-950/60 backdrop-blur-[2px]">
-    <div class="max-w-md p-8 rounded-2xl bg-dark-900/90 border border-white/10 shadow-2xl text-center flex flex-col items-center gap-4">
-      <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-2xl shadow-inner">
-        🕸️
-      </div>
-      <div>
-        <h2 class="text-base font-bold text-white tracking-tight">Raymond Knowledge Graph</h2>
-        <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-          Authentication required. No data is accessible without entering your Supabase credentials or importing a local JSON file.
-        </p>
-      </div>
-      <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full pt-1">
-        <button onclick="openSettingsModal()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-purple-950/50">
-          <i data-lucide="database" class="w-3.5 h-3.5"></i> Connect Database
-        </button>
-        <button onclick="triggerJsonImport()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-medium text-xs flex items-center justify-center gap-2 transition">
-          <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import JSON
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Floating Drag-to-Connect Indicator Pill -->
   <div id="dropConnectPill" class="hidden fixed z-50 pointer-events-none bg-emerald-600/95 text-white font-semibold text-xs px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md border border-emerald-400 flex items-center gap-1.5 transition-opacity">
     <i data-lucide="link-2" class="w-3.5 h-3.5 text-emerald-200"></i>
@@ -476,14 +453,34 @@
       const queryParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 
-      const urlParam = hashParams.get('supabaseUrl') || hashParams.get('url') || queryParams.get('supabaseUrl') || queryParams.get('url');
-      const keyParam = hashParams.get('supabaseKey') || hashParams.get('key') || hashParams.get('apikey') || queryParams.get('supabaseKey') || queryParams.get('key') || queryParams.get('apikey');
+      let urlParam = hashParams.get('supabaseUrl') || hashParams.get('url') || queryParams.get('supabaseUrl') || queryParams.get('url') || '';
+      let keyParam = hashParams.get('supabaseKey') || hashParams.get('key') || hashParams.get('apikey') || queryParams.get('supabaseKey') || queryParams.get('key') || queryParams.get('apikey') || '';
 
-      const savedUrl = urlParam || localStorage.getItem('raymond_supabase_url') || (window.__DEFAULT_SUPABASE_URL__ || '');
-      const savedKey = keyParam || localStorage.getItem('raymond_supabase_key') || (window.__DEFAULT_SUPABASE_KEY__ || '');
+      // Also support semicolon separator or unescaped fragments: #url=...;key=...
+      if (!urlParam && window.location.hash) {
+        const hashStr = window.location.hash.replace(/^#/, '');
+        const matchUrl = hashStr.match(/url=([^;&]+)/);
+        const matchKey = hashStr.match(/key=([^;&]+)/);
+        if (matchUrl) urlParam = decodeURIComponent(matchUrl[1]);
+        if (matchKey) keyParam = decodeURIComponent(matchKey[1]);
+      }
+
+      // Strip any accidental shell caret (^), trailing slashes, or whitespace
+      urlParam = urlParam.replace(/[\s\^/]+$/, '').replace(/^[\s\^]+/, '').trim();
+      keyParam = keyParam.replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
+
+      const savedUrl = urlParam || (localStorage.getItem('raymond_supabase_url') || '').replace(/[\s\^/]+$/, '').trim() || (window.__DEFAULT_SUPABASE_URL__ || '');
+      const savedKey = keyParam || (localStorage.getItem('raymond_supabase_key') || '').replace(/[\s\^]+$/, '').trim() || (window.__DEFAULT_SUPABASE_KEY__ || '');
 
       document.getElementById('cfgSupabaseUrl').value = savedUrl;
       document.getElementById('cfgSupabaseKey').value = savedKey;
+
+      if (savedUrl && savedKey) {
+        try {
+          localStorage.setItem('raymond_supabase_url', savedUrl);
+          localStorage.setItem('raymond_supabase_key', savedKey);
+        } catch (_) {}
+      }
 
       // Clean address bar so credentials are saved in localStorage but not left in browser history
       if (urlParam || keyParam) {
@@ -1072,17 +1069,6 @@
 
       const unlinkedEntities = getUnlinkedMemoryEntities();
       const allGraphNodes = [...rawEntities, ...unlinkedEntities];
-
-      // Empty State Overlay Visibility
-      const emptyOverlay = document.getElementById('emptyStateOverlay');
-      if (emptyOverlay) {
-        if (allGraphNodes.length === 0) {
-          emptyOverlay.classList.remove('hidden');
-          lucide.createIcons();
-        } else {
-          emptyOverlay.classList.add('hidden');
-        }
-      }
 
       // 1. Determine active entity set based on Hop Focus Mode
       let allowedEntityIds = null;
@@ -1756,11 +1742,11 @@
     async function fetchFromSupabase(url, key) {
       updateStatusBadge('connecting', 'Connecting...');
       
-      const cleanUrl = url.replace(/\/+$/, '');
+      const cleanUrl = url.replace(/[\s\^/]+$/, '').trim();
+      const cleanKey = key.replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
       const headers = {
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json'
+        'apikey': cleanKey,
+        'Authorization': `Bearer ${cleanKey}`
       };
 
       try {
@@ -1780,7 +1766,7 @@
         rawMemoryEntities = memEntRes.ok ? await memEntRes.json() : [];
 
         localStorage.setItem('raymond_supabase_url', cleanUrl);
-        localStorage.setItem('raymond_supabase_key', key);
+        localStorage.setItem('raymond_supabase_key', cleanKey);
 
         updateStatusBadge('connected', 'Live Supabase');
         closeSettingsModal();
