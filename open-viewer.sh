@@ -59,11 +59,14 @@ if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ] && [ "$SUPABASE_URL" != "$DE
   echo "✨ Auto-detected custom Supabase instance: ${SUPABASE_URL}"
 fi
 
+# Cache-buster timestamp for hosted pages to prevent browser disk cache staleness
+CACHE_BUSTER="?v=$(date +%s)"
+
 if [ "$USE_LOCAL" = true ]; then
   TARGET="file://${VIEWER_HTML}${QUERY}"
-  echo "💻 Target: Local Browser File (file://)"
+  echo "💻 Target: Local Browser File"
 else
-  TARGET="${PAGES_URL}${QUERY}"
+  TARGET="${PAGES_URL}${CACHE_BUSTER}${QUERY}"
   echo "🌐 Target: Hosted GitHub Pages Viewer"
 fi
 echo "🔗 ${TARGET}"
@@ -72,11 +75,21 @@ echo "🕸️ Opening Raymond Knowledge Graph Viewer in your default browser..."
 
 # Detect environment and launch browser
 if [[ -n "$WSL_DISTRO_NAME" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-  # WSL environment: run from /mnt/c so cmd.exe has valid local working directory
-  if [ "$USE_LOCAL" = true ] && command -v wslpath >/dev/null 2>&1; then
-    WIN_PATH=$(wslpath -w "$VIEWER_HTML")
-    LOCAL_TARGET="file:///${WIN_PATH//\\//}${QUERY}"
-    (cd /mnt/c && cmd.exe /c start "" "$LOCAL_TARGET" >/dev/null 2>&1 &)
+  # WSL environment
+  WIN_USER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n')
+  [ -z "$WIN_USER" ] && WIN_USER="danie"
+  WIN_TEMP_DIR="/mnt/c/Users/${WIN_USER}/AppData/Local/Temp"
+
+  if [ "$USE_LOCAL" = true ]; then
+    # Copy to native Windows Temp to avoid WSL UNC path rejection ('link not supported')
+    if [ -d "$WIN_TEMP_DIR" ]; then
+      cp "$VIEWER_HTML" "${WIN_TEMP_DIR}/raymond_viewer.html"
+      WIN_TARGET="C:\\Users\\${WIN_USER}\\AppData\\Local\\Temp\\raymond_viewer.html"
+      (cd /mnt/c && cmd.exe /c start "" "$WIN_TARGET" >/dev/null 2>&1 &)
+    else
+      WIN_PATH=$(wslpath -w "$VIEWER_HTML")
+      (cd /mnt/c && cmd.exe /c start "" "$WIN_PATH" >/dev/null 2>&1 &)
+    fi
   else
     (cd /mnt/c && cmd.exe /c start "" "$TARGET" >/dev/null 2>&1 &)
   fi

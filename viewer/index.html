@@ -479,7 +479,7 @@
       if (!savedUrl || savedUrl === 'supabase.co' || savedUrl === 'https://supabase.co' || savedUrl === 'http://supabase.co' || savedUrl.includes('xyzcompany')) {
         savedUrl = DEFAULT_SUPABASE_URL;
       }
-      if (!savedKey) {
+      if (!savedKey || savedKey === 'undefined' || savedKey === 'null' || savedKey.length < 20 || savedKey.includes('xyz')) {
         savedKey = DEFAULT_SUPABASE_KEY;
       }
 
@@ -526,7 +526,7 @@
         url = DEFAULT_SUPABASE_URL;
         document.getElementById('cfgSupabaseUrl').value = url;
       }
-      if (!key) {
+      if (!key || key === 'undefined' || key === 'null' || key.length < 20 || key.includes('xyz')) {
         key = DEFAULT_SUPABASE_KEY;
         document.getElementById('cfgSupabaseKey').value = key;
       }
@@ -536,7 +536,18 @@
           await fetchFromSupabase(url, key);
           return;
         } catch (e) {
-          console.warn("Auto-connect failed:", e);
+          console.warn("Auto-connect with saved credentials failed:", e);
+          if (url !== DEFAULT_SUPABASE_URL || key !== DEFAULT_SUPABASE_KEY) {
+            try {
+              console.log("Retrying with default project credentials...");
+              document.getElementById('cfgSupabaseUrl').value = DEFAULT_SUPABASE_URL;
+              document.getElementById('cfgSupabaseKey').value = DEFAULT_SUPABASE_KEY;
+              await fetchFromSupabase(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
+              return;
+            } catch (err2) {
+              console.error("Default connection retry failed:", err2);
+            }
+          }
         }
       }
 
