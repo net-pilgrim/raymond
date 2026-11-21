@@ -18,7 +18,7 @@ Agent Action | Appropriate MCP Tool | Example Scope / Category
 **Starting a subtask** | `recall_shared_memories(query=...)` | Multi-agent coordination
 **Exploring concepts & links** | `search_graph(query=..., max_depth=1)` | Knowledge graph traversal
 **Inspecting an entity** | `get_entity(name=...)` | Inspect entity, edges & memories
-**Displaying / visualizing the Knowledge Graph** | **INTERNAL VIEWER ALWAYS** (`python3 viewer/serve.py 8080` -> `http://localhost:8080`) | Interactive visual graph; **NEVER use Mermaid for graph display** (Mermaid is for READMEs only)
+**Displaying / visualizing the Knowledge Graph** | **INTERNAL VIEWER ALWAYS** (Browser `file://.../viewer/index.html` or Edge URL `https://<ref>.supabase.co/functions/v1/mcp/viewer?apikey=<key>`) | Interactive visual graph; **NEVER use Mermaid for graph display** (Mermaid is for READMEs only)
 **Exporting raw Graph JSON** | `get_knowledge_graph(active_only=...)` | Structured JSON dump of entities, relations, memories
 **Discovering an environment/code fact** | `store_memory(content=..., category='fact', entities=[...], relations=[...])` | `fact`
 **Making a design/architecture choice** | `store_memory(content=..., category='decision', entities=[...], relations=[...])` | `decision`
@@ -152,22 +152,24 @@ delete_memory(id="uuid-here", purge_orphaned_entities=True)
 update_memory(id="uuid-here", is_obsolete=True)
 ```
 
-### 6. Displaying & Visualizing the Knowledge Graph (Always Use the Internal Viewer)
+### 6. Displaying & Visualizing the Knowledge Graph (Zero-Runtime & Pure Client)
 
 > [!IMPORTANT]
-> **Strict Directive: ALWAYS use the Raymond Internal Viewer to display or visualize the Knowledge Graph.**
-> - Whenever asked to display, view, show, or visualize the Knowledge Graph (or explore graph topology, entities, and relations), **ALWAYS launch or link to the internal viewer**.
+> **Strict Directive: ALWAYS use the Raymond Visual Viewer to display or visualize the Knowledge Graph.**
+> - Whenever asked to display, view, show, or visualize the Knowledge Graph (or explore graph topology, entities, and relations), **ALWAYS link to or open the viewer**.
+> - **Zero-Runtime Methods (No Python, No Node.js Needed)**:
+>   1. **Direct Browser File**: Simply open or link to `viewer/index.html` (e.g. `file:///home/dsv/work/mnesia/viewer/index.html` or `xdg-open viewer/index.html`). It is a 100% standalone, pure client-side HTML5/JS app that connects directly to Supabase via browser `fetch()`.
+>   2. **Serverless Cloud Viewer**: `https://<ref>.supabase.co/functions/v1/mcp/viewer?apikey=<key>` (Hosted natively by your Supabase Edge Function).
+>   3. **Offline Drag-and-Drop**: Users can drag and drop any exported `graph.json` directly onto the canvas to explore.
 > - **NEVER generate Mermaid diagrams, ASCII trees, or text mockups** to visualize the Knowledge Graph. (Mermaid diagram directives in memories/instructions apply strictly to technical documentation and README files, NEVER to displaying the knowledge graph).
-> - The internal interactive viewer provides force-directed physics, hierarchical DAG layout, neighborhood isolation (1-hop / 2-hop), real-time search auto-focus, and full Markdown memory inspection.
+> - The internal interactive viewer provides force-directed physics, hierarchical DAG layout, neighborhood isolation (1-hop / 2-hop), real-time search auto-focus, interactive drag-to-connect linking, and full Markdown memory inspection.
 
 #### How to Launch and Access the Viewer:
-1. **Ensure the local viewer & proxy is active**:
-   ```bash
-   python3 viewer/serve.py 8080
-   ```
-2. **Provide the user with the direct viewer link**:
-   - Local Web UI: `http://localhost:8080`
-   - Or Edge Function viewer URL: `https://<ref>.supabase.co/functions/v1/mcp/viewer?apikey=<key>`
+1. **Open directly in browser (Zero Runtime)**:
+   - File link: `file:///home/dsv/work/mnesia/viewer/index.html`
+   - Command: `xdg-open viewer/index.html` (Linux) / `open viewer/index.html` (macOS)
+2. **Or access the Serverless Edge Function viewer**:
+   - `https://<ref>.supabase.co/functions/v1/mcp/viewer?apikey=<key>`
 3. **Graph Topology & Node Rules**:
    - **Entity Nodes**: Color-coded by type (`concept`, `component`, `technology`, `decision`, `agent`, `system`, `tool`).
    - **Gray Nodes (Unlinked Memories)**: Any memory in the database not yet linked to any entity or relation appears directly on the graph canvas as a distinct **gray node** (`type: 'memory'`). Clicking a gray node opens the slide-out inspector displaying its full Markdown content, author agent, category, tags, and guidance on grounding it into KG entities.

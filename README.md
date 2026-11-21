@@ -158,25 +158,32 @@ Raymond includes a modern, zero-dependency, standalone graphical browser for vis
 - 📋 **Inspector Drawer**: Click any node or edge to inspect full metadata, incoming/outgoing edges, and grounded agent memories.
 - ⚡ **Built-in Demo Dataset**: Explore a pre-loaded multi-agent architecture graph immediately without database credentials.
 
-### How to Launch
+### How to Launch (Zero-Runtime & Pure Client)
 
-#### Option 1: Local Tool with Auto-Proxying
-The local tool auto-detects your credentials from `~/.gemini/config/mcp_config.json` or `.env` and proxies the graph JSON to the web viewer:
-```bash
-# Launch interactive viewer & local proxy
-python3 viewer/serve.py 8080
+#### Option 1: Standalone Browser Viewer (Zero Runtime, Zero Dependencies)
+`viewer/index.html` is a 100% pure client-side single-page application. It runs directly in any modern web browser without requiring Python, Node.js, or local server processes.
+- **Open in browser**: Simply double-click `viewer/index.html` or run `xdg-open viewer/index.html` (`open viewer/index.html` on macOS).
+- **Direct Supabase Sync**: Connects directly from the browser to your Supabase PostgREST tables. Credentials are saved only in your browser's local storage.
+- **Offline Drag-and-Drop**: Drag and drop any `graph.json` file onto the window (or click the **Import JSON** button in the header) to view graphs without any database credentials.
 
-# Or export/dump the JSON graph representation
-python3 viewer/serve.py --json
-python3 viewer/serve.py --dump graph.json
-```
-Then navigate to `http://localhost:8080`.
-
-#### Option 2: Live Edge Function Endpoints
-The Edge Function generates the graph JSON representation directly:
+#### Option 2: Live Edge Function Endpoints (Serverless)
+The Supabase Edge Function generates the graph JSON and graphical viewer directly with zero local runtime:
+- **Web UI**: `GET https://<your-project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-supabase-key>`
 - **JSON Graph API**: `GET https://<your-project-ref>.supabase.co/functions/v1/mcp/graph.json`
 - **MCP Tool**: `get_knowledge_graph(active_only=false, limit_entities=1000)`
-- **Web UI**: `GET https://<your-project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-supabase-key>`
+
+#### Option 3: Optional Python CLI Helper (`serve.py`)
+If you want to pipe JSON to stdout or run terminal tests:
+```bash
+# Print graph JSON directly to terminal
+python3 viewer/serve.py --json
+
+# Save graph JSON representation to a file
+python3 viewer/serve.py --dump graph.json
+
+# Test connection and view statistics
+python3 viewer/serve.py --test
+```
 
 ---
 

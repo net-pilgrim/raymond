@@ -4,15 +4,38 @@ An interactive, zero-dependency graphical browser for multi-agent knowledge grap
 
 ![Raymond Knowledge Graph Viewer](data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🕸️</text></svg>)
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Zero Runtime Needed)
 
-### Option 1: Run the Local Proxy & Viewer Tool
-The local tool automatically auto-discovers your Supabase credentials (from `~/.gemini/config/mcp_config.json`, `.env`, or CLI arguments), fetches the graph JSON representation, and displays the interactive UI:
+### Option 1: Pure Client-Side in Any Web Browser (Zero Runtime)
+`viewer/index.html` is a 100% standalone single-page application. It requires **no Python, no Node.js, and no web server**.
+
+1. **Open directly in your browser**:
+   - Double-click `viewer/index.html` in your file manager, or run:
+     ```bash
+     # Linux
+     xdg-open viewer/index.html
+     # macOS
+     open viewer/index.html
+     # Windows
+     start viewer/index.html
+     ```
+   - Or open `file:///path/to/viewer/index.html` in Chrome, Safari, Firefox, or Edge.
+2. **Connect or Explore**:
+   - Click the **Settings** gear to enter your Supabase URL & Key (saved in browser `localStorage` only; connects directly to Supabase PostgREST).
+   - Or click **Load Demo Graph** to explore immediately without credentials.
+   - Or drag-and-drop any exported `graph.json` file straight onto the canvas (or click **Import JSON** in the top bar) for instant offline visualization.
+
+### Option 2: Cloud Serverless Edge Viewer (Zero Local Footprint)
+Your deployed Supabase Edge Function serves the viewer natively from the cloud:
+
+- **Web UI**: `https://<project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-key>`
+- **JSON Endpoint**: `https://<project-ref>.supabase.co/functions/v1/mcp/graph.json`
+- **MCP Tool**: Call `get_knowledge_graph` via your agent
+
+### Option 3: Optional Python CLI Helper
+If you prefer CLI workflows or piping JSON output to scripts:
 
 ```bash
-# Start local viewer & proxy on port 8080 (default)
-python3 viewer/serve.py 8080
-
 # Output graph JSON representation directly to stdout
 python3 viewer/serve.py --json
 
@@ -21,15 +44,10 @@ python3 viewer/serve.py --dump graph.json
 
 # Test connection and view statistics
 python3 viewer/serve.py --test
+
+# Optional local proxy server
+python3 viewer/serve.py 8080
 ```
-Then navigate to [http://localhost:8080](http://localhost:8080).
-
-### Option 2: Access via Supabase Edge Function
-The Edge Function generates the graph JSON and graphical viewer directly:
-
-- **JSON Endpoint**: `GET https://<project-ref>.supabase.co/functions/v1/mcp/graph.json`
-- **MCP Tool**: Call `get_knowledge_graph` via MCP
-- **Web UI**: `GET https://<project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-key>`
 
 ---
 

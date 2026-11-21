@@ -239,6 +239,10 @@
         <button onclick="exportPNG()" title="Export PNG Screenshot" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
           <i data-lucide="camera" class="w-4 h-4"></i>
         </button>
+        <button onclick="triggerJsonImport()" title="Import Graph JSON (Offline / Zero-Runtime)" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+        </button>
+        <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" onchange="handleFileImport(event)">
         <button onclick="openSettingsModal()" title="Supabase API Settings" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
           <i data-lucide="settings" class="w-4 h-4"></i>
         </button>
@@ -524,17 +528,19 @@
     }
 
     async function autoConnectOrDemo() {
-      // 1. Check local proxy tool (/api/graph) first!
-      try {
-        const proxyRes = await fetch('/api/graph');
-        if (proxyRes.ok) {
-          const graphJson = await proxyRes.json();
-          if (graphJson && graphJson.entities) {
-            applyGraphJson(graphJson, 'Live Edge Proxy');
-            return;
+      // 1. Check local proxy tool (/api/graph) only if not running from file://
+      if (window.location.protocol !== 'file:') {
+        try {
+          const proxyRes = await fetch('/api/graph');
+          if (proxyRes.ok) {
+            const graphJson = await proxyRes.json();
+            if (graphJson && graphJson.entities) {
+              applyGraphJson(graphJson, 'Live Edge Proxy');
+              return;
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
       // 2. Try configured credentials
       const url = document.getElementById('cfgSupabaseUrl').value.trim();
@@ -550,6 +556,52 @@
       }
       loadDemoDataset();
     }
+
+    // --- PURE CLIENT OFFLINE IMPORT & DRAG-AND-DROP ---
+    function triggerJsonImport() {
+      document.getElementById('jsonFileInput').click();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      loadGraphFromFile(file);
+      e.target.value = '';
+    }
+
+    function loadGraphFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (data && (data.entities || data.nodes)) {
+            applyGraphJson(data, `File: ${file.name}`);
+            showToast(`Loaded graph from <b>${escapeHtml(file.name)}</b>`, 'success');
+          } else {
+            alert("Invalid Graph JSON structure. Expected JSON with an 'entities' array.");
+          }
+        } catch (err) {
+          alert("Error parsing JSON file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.name.toLowerCase().endsWith('.json')) {
+          loadGraphFromFile(file);
+        }
+      }
+    });
 
     function applyGraphJson(graphJson, sourceLabel = 'Live Proxy') {
       rawEntities = graphJson.entities || [];
