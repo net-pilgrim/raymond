@@ -1,11 +1,18 @@
-# Mnesia: Serverless Multi-Agent Memory, Knowledge Graph & Skills System
+# Raymond: Serverless Multi-Agent Memory, Knowledge Graph & Skills System
 
-[![Deploy MCP Edge Function to Supabase](https://github.com/net-pilgrim/mnesia/actions/workflows/deploy.yml/badge.svg)](https://github.com/net-pilgrim/mnesia/actions/workflows/deploy.yml)
+<p align="center">
+  <img src="assets/raymond.jpg" alt="Raymond Babbitt (Rain Man)" width="400" style="border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);" />
+  <br>
+  <em>"Raymond, what are you doing?" &mdash; "Counting."</em><br>
+  <strong>Raymond Babbitt</strong>, the savant from <em>Rain Man</em> (1988) with encyclopedic recall and instant memory retrieval.
+</p>
+
+[![Deploy MCP Edge Function to Supabase](https://github.com/net-pilgrim/raymond/actions/workflows/deploy.yml/badge.svg)](https://github.com/net-pilgrim/raymond/actions/workflows/deploy.yml)
 [![Supabase Edge Runtime](https://img.shields.io/badge/Runtime-Supabase%20Edge%20(Deno)-3ECF8E?logo=supabase)](https://supabase.com)
 [![Embeddings: Gemini](https://img.shields.io/badge/Embeddings-Google%20Gemini%20(Free)-4285F4?logo=google)](https://aistudio.google.com)
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-Model%20Context%20Protocol-orange)](https://modelcontextprotocol.io)
 
-**Mnesia** is a persistent, shared memory, knowledge graph, and skill store for fleets of autonomous AI agents (Google Antigravity/AGY, Claude Desktop, Cursor, LangGraph, AutoGen, etc.). Built natively on **Supabase Edge Functions** (Deno) and **PostgreSQL with `pgvector` & `pg_trgm`**, it enables agents across different sessions, machines, and workspaces to store discoveries, ground knowledge graph entities and relations, recall peer knowledge, and execute shared runbooks.
+**Raymond** is a persistent, shared memory, knowledge graph, and skill store for fleets of autonomous AI agents (Google Antigravity/AGY, Claude Desktop, Cursor, LangGraph, AutoGen, etc.). Named in homage to Raymond Babbitt (*Rain Man*)—the autistic savant renowned for his instantaneous calculation, photographic recall, and eidetic memory—**Raymond** equips autonomous agent swarms with flawless, cross-session recall and an interconnected knowledge graph. Built natively on **Supabase Edge Functions** (Deno) and **PostgreSQL with `pgvector` & `pg_trgm`**, it enables agents across different sessions, machines, and workspaces to store discoveries, ground knowledge graph entities and relations, recall peer knowledge, and execute shared runbooks.
 
 - ❌ **No Docker containers or local daemon processes**
 - ❌ **No VPS servers to maintain or pay for**
@@ -72,10 +79,10 @@ flowchart TD
 ```
 
 ### Architectural Flow:
-1. **Agent Connection**: Your agent connects to Mnesia over a secure HTTPS Server-Sent Events (SSE) stream using the standard **Model Context Protocol (MCP)**.
+1. **Agent Connection**: Your agent connects to Raymond over a secure HTTPS Server-Sent Events (SSE) stream using the standard **Model Context Protocol (MCP)**.
 2. **Authentication Guard**: The Edge Function validates incoming requests against your Supabase `service_role` (secret) or `anon` (publishable) key.
 3. **Quota-Aware Embedding Generation**:
-   - Mnesia hashes memory content using **SHA-256**. If an identical memory has already been embedded, it reuses the vector directly with zero external API calls.
+   - Raymond hashes memory content using **SHA-256**. If an identical memory has already been embedded, it reuses the vector directly with zero external API calls.
    - On cache miss, it calls Google Gemini's `gemini-embedding-001` endpoint with `outputDimensionality: 768`.
    - On rate limits (HTTP 429), it degrades gracefully by persisting the memory without embedding and falling back to full-text and knowledge graph search.
 4. **Knowledge Graph Grounding**:
@@ -141,7 +148,7 @@ erDiagram
 
 ## 🌐 Interactive Knowledge Graph Visualizer & Explorer
 
-Mnesia includes a modern, zero-dependency, standalone graphical browser for visualizing and exploring entities, relations, and grounded memories:
+Raymond includes a modern, zero-dependency, standalone graphical browser for visualizing and exploring entities, relations, and grounded memories:
 
 - 🎮 **Force-Directed & Hierarchical (DAG) Physics**: Pan, zoom, drag nodes, and toggle between organic clustering or tree layouts.
 - 🎨 **Type-Aware Color Theming**: Visual color codes for `component`, `technology`, `concept`, `decision`, `agent`, `system`, and `tool`.
@@ -202,11 +209,11 @@ sequenceDiagram
 
 ## 📚 Available Skills & How to Use Them
 
-Mnesia provides two levels of skills: the **agent-level skill** that teaches the agent how to coordinate, and the **database-level skill store** where agents publish and retrieve team runbooks dynamically.
+Raymond provides two levels of skills: the **agent-level skill** that teaches the agent how to coordinate, and the **database-level skill store** where agents publish and retrieve team runbooks dynamically.
 
 ```mermaid
 flowchart LR
-    subgraph AgentLevel["Agent-Level Skill (.agents/skills/mnesia)"]
+    subgraph AgentLevel["Agent-Level Skill (.agents/skills/raymond)"]
         S1["SKILL.md Instructions"]
         S2["Memory Taxonomy (fact, decision, etc.)"]
         S3["Knowledge Graph Grounding Rules"]
@@ -260,7 +267,7 @@ flowchart LR
    - **Project Ref**: The 20-character identifier in your URL (e.g. `zmocedvkqrcxwkthmwql`).
 
 ### 2. Google AI Studio Setup (Gemini Embeddings)
-Mnesia uses Google's `gemini-embedding-001` model, providing 768-dimensional embeddings with a generous free tier of **1,500 requests per minute** at $0 cost.
+Raymond uses Google's `gemini-embedding-001` model, providing 768-dimensional embeddings with a generous free tier of **1,500 requests per minute** at $0 cost.
 1. Visit [Google AI Studio](https://aistudio.google.com).
 2. Click **Get API key** and select **Create API key in new project**.
 3. Copy your API key (starts with `AIzaSy...`).
@@ -279,7 +286,7 @@ This repository automatically deploys the MCP Edge Function to your Supabase pro
 
 ---
 
-## 🤖 How to Configure Mnesia on Your Agent
+## 🤖 How to Configure Raymond on Your Agent
 
 Configure your MCP client to connect to your live Supabase Edge Function URL:
 `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse`
@@ -289,7 +296,7 @@ Edit `~/.gemini/config/mcp_config.json`:
 ```json
 {
   "mcpServers": {
-    "mnesia": {
+    "raymond": {
       "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse",
       "headers": {
         "Authorization": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
@@ -304,7 +311,7 @@ Edit `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mnesia": {
+    "raymond": {
       "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse",
       "headers": {
         "Authorization": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
@@ -318,7 +325,7 @@ Edit `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mnesia": {
+    "raymond": {
       "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse?apikey=YOUR_SUPABASE_SERVICE_ROLE_KEY"
     }
   }
@@ -341,7 +348,7 @@ Expected response:
 ```json
 {
   "status": "healthy",
-  "server": "MnesiaMemorySystem",
+  "server": "RaymondMemorySystem",
   "version": "1.1.0",
   "runtime": "supabase-edge",
   "features": [

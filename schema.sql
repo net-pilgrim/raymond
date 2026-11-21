@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Supabase Schema for Multi-Agent MCP Memory System (Mnesia)
+-- Supabase Schema for Multi-Agent MCP Memory System (Raymond)
 -- Knowledge Graph & Vector Memory Architecture
 -- ==============================================================================
 

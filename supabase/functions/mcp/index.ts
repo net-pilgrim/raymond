@@ -1,4 +1,4 @@
-// Supabase Edge Function: Multi-Agent MCP Memory Server (Mnesia)
+// Supabase Edge Function: Multi-Agent MCP Memory Server (Raymond)
 // Runtime: Deno / Edge Runtime
 // Protocol: Model Context Protocol (MCP) over Server-Sent Events (SSE) & Streamable HTTP
 // Features: Dual Vector/Text Retrieval + Knowledge Graph Grounding & Multi-Hop Traversal
@@ -1720,7 +1720,7 @@ async function handleJsonRpc(
           tools: { listChanged: false },
         },
         serverInfo: {
-          name: "MnesiaMemorySystem",
+          name: "RaymondMemorySystem",
           version: "1.1.0",
         },
       },
@@ -1889,7 +1889,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: "healthy",
-        server: "MnesiaMemorySystem",
+        server: "RaymondMemorySystem",
         version: "1.1.0",
         runtime: "supabase-edge",
         features: ["vector_search", "full_text_search", "knowledge_graph", "skill_registry"],

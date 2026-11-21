@@ -11,7 +11,7 @@ jobs:
     name: Ping Supabase Health Check
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Mnesia Edge Function
+      - name: Ping Raymond Edge Function
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -22,7 +22,7 @@ jobs:
             exit 0
           fi
           KEY="${SUPABASE_SERVICE_ROLE_KEY:-$SUPABASE_ANON_KEY}"
-          echo "Pinging Raggae health endpoint at $SUPABASE_URL/functions/v1/mcp/health..."
+          echo "Pinging Raymond health endpoint at $SUPABASE_URL/functions/v1/mcp/health..."
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" "$SUPABASE_URL/functions/v1/mcp/health")
           echo "Response HTTP Status: $STATUS"
           if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then

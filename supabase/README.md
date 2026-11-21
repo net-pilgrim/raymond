@@ -1,4 +1,4 @@
-# Supabase Edge Function: Mnesia MCP Memory Server
+# Supabase Edge Function: Raymond MCP Memory Server
 
 Run your MCP Memory System natively inside **Supabase Edge Functions**.
 - ❌ No Docker containers

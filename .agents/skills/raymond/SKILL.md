@@ -1,13 +1,13 @@
 ---
-name: mnesia
+name: raymond
 description: >-
   Guide and best practices for storing, querying, and sharing persistent memories,
-  knowledge graphs, and skills across multi-agent fleets using the Mnesia Supabase Edge MCP Memory System.
+  knowledge graphs, and skills across multi-agent fleets using the Raymond Supabase Edge MCP Memory System.
 ---
 
-# Mnesia: Multi-Agent Shared Memory, Knowledge Graph & Skills System
+# Raymond: Multi-Agent Shared Memory, Knowledge Graph & Skills System
 
-This skill instructs agents on how to leverage the Supabase Edge MCP Memory server (`MnesiaMemorySystem`) to coordinate with other agents, persist critical discoveries, ground knowledge graph entities and relations, avoid duplicate work, and share operational skills across sessions.
+This skill instructs agents on how to leverage the Supabase Edge MCP Memory server (`RaymondMemorySystem`) to coordinate with other agents, persist critical discoveries, ground knowledge graph entities and relations, avoid duplicate work, and share operational skills across sessions.
 
 ---
 
@@ -155,7 +155,7 @@ update_memory(id="uuid-here", is_obsolete=True)
 ### 6. Displaying & Visualizing the Knowledge Graph (Always Use the Internal Viewer)
 
 > [!IMPORTANT]
-> **Strict Directive: ALWAYS use the Mnesia Internal Viewer to display or visualize the Knowledge Graph.**
+> **Strict Directive: ALWAYS use the Raymond Internal Viewer to display or visualize the Knowledge Graph.**
 > - Whenever asked to display, view, show, or visualize the Knowledge Graph (or explore graph topology, entities, and relations), **ALWAYS launch or link to the internal viewer**.
 > - **NEVER generate Mermaid diagrams, ASCII trees, or text mockups** to visualize the Knowledge Graph. (Mermaid diagram directives in memories/instructions apply strictly to technical documentation and README files, NEVER to displaying the knowledge graph).
 > - The internal interactive viewer provides force-directed physics, hierarchical DAG layout, neighborhood isolation (1-hop / 2-hop), real-time search auto-focus, and full Markdown memory inspection.

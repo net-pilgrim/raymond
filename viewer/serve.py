@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Mnesia Knowledge Graph Viewer & Edge Proxy Tool
+Raymond Knowledge Graph Viewer & Edge Proxy Tool
 Fetches the Knowledge Graph JSON representation from Supabase / Edge Function
 and serves an interactive local viewer.
 
@@ -71,9 +71,10 @@ def discover_credentials(cli_url=None, cli_key=None):
             try:
                 with open(gemini_mcp, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
-                mnesia_cfg = cfg.get("mcpServers", {}).get("mnesia", {})
-                raw_url = mnesia_cfg.get("url", "")
-                auth_hdr = mnesia_cfg.get("headers", {}).get("Authorization", "")
+                servers = cfg.get("mcpServers", {})
+                raymond_cfg = servers.get("raymond", {})
+                raw_url = raymond_cfg.get("url", "")
+                auth_hdr = raymond_cfg.get("headers", {}).get("Authorization", "")
                 
                 if raw_url and not url:
                     # Clean URL to project base: https://<ref>.supabase.co
@@ -313,7 +314,7 @@ class KnowledgeGraphProxyHandler(http.server.SimpleHTTPRequestHandler):
         sys.stderr.write(f"[{self.log_date_time_string()}] {args[0]} - {args[1]}\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="Mnesia Knowledge Graph Viewer & Proxy Tool")
+    parser = argparse.ArgumentParser(description="Raymond Knowledge Graph Viewer & Proxy Tool")
     parser.add_argument("port", nargs="?", type=int, default=8080, help="Port to serve web viewer on (default: 8080)")
     parser.add_argument("--url", help="Supabase project URL (e.g. https://xyz.supabase.co)")
     parser.add_argument("--key", help="Supabase API key (anon or service role)")
@@ -384,7 +385,7 @@ def main():
     os.chdir(DIRECTORY)
     with ReusableTCPServer(("", args.port), KnowledgeGraphProxyHandler) as httpd:
         print("=" * 65)
-        print("🕸️  Mnesia Knowledge Graph Viewer & Proxy")
+        print("🕸️  Raymond Knowledge Graph Viewer & Proxy")
         print(f"    👉  Web Viewer UI: http://localhost:{args.port}")
         print(f"    👉  JSON Endpoint: http://localhost:{args.port}/api/graph")
         if url:
