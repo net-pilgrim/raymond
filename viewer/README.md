@@ -6,36 +6,15 @@ An interactive, zero-dependency graphical browser for multi-agent knowledge grap
 
 ## 🚀 Quick Start (Zero Runtime Needed)
 
-### Option 1: Pure Client-Side in Any Web Browser (Zero Runtime)
-`viewer/index.html` is a 100% standalone single-page application. It requires **no Python, no Node.js, and no web server**.
+### Option 1: Live Hosted GitHub Pages Viewer (Recommended)
+The interactive viewer is deployed live on GitHub Pages:
+- 🌐 **Web App**: [`https://net-pilgrim.github.io/raymond/`](https://net-pilgrim.github.io/raymond/)
+- **1-Click Launch**: Run `./open-viewer.sh` from the repository root to automatically open the GitHub Pages app in your default browser with your credentials auto-connected.
+- **Connect**: Click **Settings** to enter your Supabase URL & Key (stored in your browser's `localStorage` only), or click **Load Demo Graph** to explore offline.
 
-1. **Automatic 1-Click Launch (Universal Linux/WSL/macOS/Windows)**:
-   ```bash
-   ./open-viewer.sh
-   ```
-   *Auto-detects credentials from `.env` or MCP config, translates WSL/Linux paths, and opens your default browser via `xdg-open`, `open`, or `start`.*
-
-2. **Or Open Directly via Desktop Shell**:
-   ```bash
-   # Linux
-   xdg-open viewer/index.html
-   # macOS
-   open viewer/index.html
-   # Windows (CMD / PowerShell)
-   start viewer/index.html
-   ```
-   Or double-click `viewer/index.html` in your file explorer.
-2. **Connect or Explore**:
-   - Click the **Settings** gear to enter your Supabase URL & Key (saved in browser `localStorage` only; connects directly to Supabase PostgREST).
-   - Or click **Load Demo Graph** to explore immediately without credentials.
-   - Or drag-and-drop any exported `graph.json` file straight onto the canvas (or click **Import JSON** in the top bar) for instant offline visualization.
-
-### Option 2: Cloud Serverless Edge Viewer (Zero Local Footprint)
-Your deployed Supabase Edge Function serves the viewer natively from the cloud:
-
-- **Web UI**: `https://<project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-key>`
-- **JSON Endpoint**: `https://<project-ref>.supabase.co/functions/v1/mcp/graph.json`
-- **MCP Tool**: Call `get_knowledge_graph` via your agent
+### Option 2: Local Standalone File (`file://`)
+Run `./open-viewer.sh --local` or double-click `viewer/index.html` to open directly as a local file with no web server.
+- **Offline Drag-and-Drop**: Drag any `graph.json` directly onto the canvas or click **Import JSON** to inspect without credentials.
 
 ### Option 3: Optional Python CLI Helper
 If you prefer CLI workflows or piping JSON output to scripts:

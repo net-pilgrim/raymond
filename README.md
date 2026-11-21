@@ -160,18 +160,16 @@ Raymond includes a modern, zero-dependency, standalone graphical browser for vis
 
 ### How to Launch (Zero-Runtime & Pure Client)
 
-#### Option 1: Standalone Browser Viewer (Zero Runtime, Zero Dependencies)
-`viewer/index.html` is a 100% pure client-side single-page application. It runs directly in any modern web browser without requiring Python, Node.js, or local server processes.
-- **Universal 1-click launcher**: `./open-viewer.sh` (auto-detects Linux `xdg-open`, macOS `open`, WSL, or Windows `start`, plus auto-injects credentials if present).
-- **Direct open**: Double-click `viewer/index.html` or run `xdg-open viewer/index.html` / `open viewer/index.html` / `start viewer/index.html`.
-- **Direct Supabase Sync**: Connects directly from the browser to your Supabase PostgREST tables. Credentials are saved only in your browser's local storage.
-- **Offline Drag-and-Drop**: Drag and drop any `graph.json` file onto the window (or click the **Import JSON** button in the header) to view graphs without any database credentials.
+#### Option 1: Live Hosted GitHub Pages Viewer (Recommended & Zero Runtime)
+The graphical browser is deployed and live on **GitHub Pages**:
+- 🌐 **Web URL**: [`https://net-pilgrim.github.io/raymond/`](https://net-pilgrim.github.io/raymond/)
+- **1-Click Terminal Launch**: Run `./open-viewer.sh` to automatically open the live web viewer in your browser with your credentials attached.
+- **Zero software**: No Python, no Node.js, no Docker, and no server processes. Runs 100% inside your browser.
 
-#### Option 2: Live Edge Function Endpoints (Serverless)
-The Supabase Edge Function generates the graph JSON and graphical viewer directly with zero local runtime:
-- **Web UI**: `GET https://<your-project-ref>.supabase.co/functions/v1/mcp/viewer?apikey=<your-supabase-key>`
-- **JSON Graph API**: `GET https://<your-project-ref>.supabase.co/functions/v1/mcp/graph.json`
-- **MCP Tool**: `get_knowledge_graph(active_only=false, limit_entities=1000)`
+#### Option 2: Local Standalone Browser File (`file://`)
+You can also open [viewer/index.html](viewer/index.html) locally with no internet access:
+- Run `./open-viewer.sh --local` or double-click `viewer/index.html`.
+- **Offline Drag-and-Drop**: Drag and drop any `graph.json` file onto the window (or click **Import JSON**) to view graphs offline without database credentials.
 
 #### Option 3: Optional Python CLI Helper (`serve.py`)
 If you want to pipe JSON to stdout or run terminal tests:

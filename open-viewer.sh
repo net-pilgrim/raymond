@@ -41,41 +41,55 @@ if [ -z "$SUPABASE_URL" ] && [ -f "$HOME/.gemini/config/mcp_config.json" ]; then
   fi
 fi
 
+PAGES_URL="https://net-pilgrim.github.io/raymond/"
+
+USE_LOCAL=false
+for arg in "$@"; do
+  if [ "$arg" = "--local" ] || [ "$arg" = "-l" ]; then
+    USE_LOCAL=true
+  fi
+done
+
 QUERY=""
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
   QUERY="?url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
   echo "✨ Auto-detected Supabase credentials: ${SUPABASE_URL}"
 fi
 
+if [ "$USE_LOCAL" = true ]; then
+  TARGET="file://${VIEWER_HTML}${QUERY}"
+  echo "💻 Target: Local Browser File (file://)"
+else
+  TARGET="${PAGES_URL}${QUERY}"
+  echo "🌐 Target: Hosted GitHub Pages Viewer"
+fi
+echo "🔗 ${TARGET}"
+
 echo "🕸️ Opening Raymond Knowledge Graph Viewer in your default browser..."
 
-# Detect environment and launch browser with local HTML file (file://)
+# Detect environment and launch browser
 if [[ -n "$WSL_DISTRO_NAME" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-  # WSL environment: convert Linux path to Windows path for Windows browser
-  if command -v wslpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
+  # WSL environment:
+  if [ "$USE_LOCAL" = true ] && command -v wslpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
     WIN_PATH=$(wslpath -m "$VIEWER_HTML")
     (cmd.exe /c start "" "file:${WIN_PATH}${QUERY}" >/dev/null 2>&1 &)
-  elif command -v wslpath >/dev/null 2>&1 && command -v explorer.exe >/dev/null 2>&1; then
-    WIN_PATH=$(wslpath -w "$VIEWER_HTML")
-    (explorer.exe "$WIN_PATH" >/dev/null 2>&1 &)
   else
-    (xdg-open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
+    (cmd.exe /c start "" "$TARGET" >/dev/null 2>&1 &)
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS
-  (open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
+  (open "$TARGET" >/dev/null 2>&1 &)
 elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ "$OSTYPE" == "win32" ]]; then
   # Windows Git Bash / Cygwin
-  start "" "file://${VIEWER_HTML}${QUERY}"
+  start "" "$TARGET"
 elif command -v xdg-open >/dev/null 2>&1; then
   # Linux desktop
-  (xdg-open "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
+  (xdg-open "$TARGET" >/dev/null 2>&1 &)
 elif command -v sensible-browser >/dev/null 2>&1; then
-  (sensible-browser "file://${VIEWER_HTML}${QUERY}" >/dev/null 2>&1 &)
+  (sensible-browser "$TARGET" >/dev/null 2>&1 &)
 else
-  echo "⚠️ No desktop opener found. Open this file in your browser:"
-  echo "   file://${VIEWER_HTML}${QUERY}"
+  echo "⚠️ No desktop opener found. Open this URL in your browser:"
+  echo "   ${TARGET}"
 fi
 
-echo "✅ Launched local browser viewer successfully!"
-echo "🔗 file://${VIEWER_HTML}${QUERY}"
+echo "✅ Launched successfully!"
