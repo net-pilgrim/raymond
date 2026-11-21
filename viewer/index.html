@@ -449,6 +449,10 @@
       autoConnectOrDemo();
     });
 
+    // --- DEFAULT PROJECT SUPABASE CREDENTIALS ---
+    const DEFAULT_SUPABASE_URL = "https://zmocedvkqrcxwkthmwql.supabase.co";
+    const DEFAULT_SUPABASE_KEY = "sb_publishable_Mtm9durpa0BqJilrDDP3Sw_emjdGVfY";
+
     function loadStoredCredentials() {
       const queryParams = new URLSearchParams(window.location.search);
       const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -469,8 +473,15 @@
       urlParam = urlParam.replace(/[\s\^/]+$/, '').replace(/^[\s\^]+/, '').trim();
       keyParam = keyParam.replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
 
-      const savedUrl = urlParam || (localStorage.getItem('raymond_supabase_url') || '').replace(/[\s\^/]+$/, '').trim() || (window.__DEFAULT_SUPABASE_URL__ || '');
-      const savedKey = keyParam || (localStorage.getItem('raymond_supabase_key') || '').replace(/[\s\^]+$/, '').trim() || (window.__DEFAULT_SUPABASE_KEY__ || '');
+      let savedUrl = urlParam || (localStorage.getItem('raymond_supabase_url') || '').replace(/[\s\^/]+$/, '').trim() || (window.__DEFAULT_SUPABASE_URL__ || DEFAULT_SUPABASE_URL);
+      let savedKey = keyParam || (localStorage.getItem('raymond_supabase_key') || '').replace(/[\s\^]+$/, '').trim() || (window.__DEFAULT_SUPABASE_KEY__ || DEFAULT_SUPABASE_KEY);
+
+      if (!savedUrl || savedUrl === 'supabase.co' || savedUrl === 'https://supabase.co' || savedUrl === 'http://supabase.co' || savedUrl.includes('xyzcompany')) {
+        savedUrl = DEFAULT_SUPABASE_URL;
+      }
+      if (!savedKey) {
+        savedKey = DEFAULT_SUPABASE_KEY;
+      }
 
       document.getElementById('cfgSupabaseUrl').value = savedUrl;
       document.getElementById('cfgSupabaseKey').value = savedKey;
@@ -507,9 +518,18 @@
         } catch (_) {}
       }
 
-      // 2. Try configured credentials
-      const url = document.getElementById('cfgSupabaseUrl').value.trim();
-      const key = document.getElementById('cfgSupabaseKey').value.trim();
+      // 2. Try configured or default credentials
+      let url = document.getElementById('cfgSupabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
+      let key = document.getElementById('cfgSupabaseKey').value.trim() || DEFAULT_SUPABASE_KEY;
+
+      if (url === 'supabase.co' || url === 'https://supabase.co' || url === 'http://supabase.co' || url.includes('xyzcompany')) {
+        url = DEFAULT_SUPABASE_URL;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      }
+      if (!key) {
+        key = DEFAULT_SUPABASE_KEY;
+        document.getElementById('cfgSupabaseKey').value = key;
+      }
 
       if (url && key) {
         try {
@@ -520,8 +540,7 @@
         }
       }
 
-      // 3. Unauthenticated / No credentials configured:
-      // Do NOT auto-load demo data. Render empty canvas and set disconnected badge.
+      // 3. Fallback if network offline
       updateStatusBadge('disconnected', 'Not Connected');
       renderGraph();
     }
@@ -1742,8 +1761,19 @@
     async function fetchFromSupabase(url, key) {
       updateStatusBadge('connecting', 'Connecting...');
       
-      const cleanUrl = url.replace(/[\s\^/]+$/, '').trim();
-      const cleanKey = key.replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
+      let cleanUrl = (url || '').replace(/[\s\^/]+$/, '').trim();
+      let cleanKey = (key || '').replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
+
+      if (cleanUrl === 'supabase.co' || cleanUrl === 'https://supabase.co' || cleanUrl === 'http://supabase.co' || !cleanUrl || cleanUrl.includes('xyzcompany')) {
+        cleanUrl = DEFAULT_SUPABASE_URL;
+      } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        cleanUrl = 'https://' + cleanUrl;
+      }
+
+      if (!cleanKey) {
+        cleanKey = DEFAULT_SUPABASE_KEY;
+      }
+
       const headers = {
         'apikey': cleanKey,
         'Authorization': `Bearer ${cleanKey}`
@@ -1765,8 +1795,10 @@
         rawMemories = memRes.ok ? await memRes.json() : [];
         rawMemoryEntities = memEntRes.ok ? await memEntRes.json() : [];
 
-        localStorage.setItem('raymond_supabase_url', cleanUrl);
-        localStorage.setItem('raymond_supabase_key', cleanKey);
+        try {
+          localStorage.setItem('raymond_supabase_url', cleanUrl);
+          localStorage.setItem('raymond_supabase_key', cleanKey);
+        } catch (_) {}
 
         updateStatusBadge('connected', 'Live Supabase');
         closeSettingsModal();
@@ -1846,15 +1878,21 @@
     }
 
     async function saveAndConnectSupabase() {
-      const url = document.getElementById('cfgSupabaseUrl').value.trim();
-      const key = document.getElementById('cfgSupabaseKey').value.trim();
+      let url = document.getElementById('cfgSupabaseUrl').value.trim();
+      let key = document.getElementById('cfgSupabaseKey').value.trim();
       const alertBox = document.getElementById('modalStatusAlert');
 
-      if (!url || !key) {
-        alertBox.className = 'p-3 rounded-lg border text-xs bg-red-950/60 text-red-300 border-red-800';
-        alertBox.textContent = 'Please enter both Supabase URL and API Key.';
-        alertBox.classList.remove('hidden');
-        return;
+      if (url === 'supabase.co' || url === 'https://supabase.co' || url === 'http://supabase.co' || !url || url.includes('xyzcompany')) {
+        url = DEFAULT_SUPABASE_URL;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      }
+
+      if (!key) {
+        key = DEFAULT_SUPABASE_KEY;
+        document.getElementById('cfgSupabaseKey').value = key;
       }
 
       alertBox.className = 'p-3 rounded-lg border text-xs bg-amber-950/60 text-amber-300 border-amber-800';
@@ -1864,6 +1902,7 @@
       try {
         await fetchFromSupabase(url, key);
         alertBox.classList.add('hidden');
+        closeSettingsModal();
       } catch (err) {
         alertBox.className = 'p-3 rounded-lg border text-xs bg-red-950/60 text-red-300 border-red-800';
         alertBox.textContent = `Connection error: ${err.message}`;

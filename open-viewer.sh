@@ -42,6 +42,7 @@ if [ -z "$SUPABASE_URL" ] && [ -f "$HOME/.gemini/config/mcp_config.json" ]; then
 fi
 
 PAGES_URL="https://net-pilgrim.github.io/raymond/"
+DEFAULT_PROJECT_URL="https://zmocedvkqrcxwkthmwql.supabase.co"
 
 USE_LOCAL=false
 for arg in "$@"; do
@@ -51,9 +52,11 @@ for arg in "$@"; do
 done
 
 QUERY=""
-if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
+# The viewer has the default project credentials built-in.
+# Only append hash parameters if targeting a different custom Supabase instance.
+if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ] && [ "$SUPABASE_URL" != "$DEFAULT_PROJECT_URL" ]; then
   QUERY="#url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
-  echo "✨ Auto-detected Supabase credentials: ${SUPABASE_URL}"
+  echo "✨ Auto-detected custom Supabase instance: ${SUPABASE_URL}"
 fi
 
 if [ "$USE_LOCAL" = true ]; then
