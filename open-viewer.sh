@@ -60,7 +60,7 @@ if [ "$USE_LOCAL" = true ]; then
   TARGET="file://${VIEWER_HTML}${QUERY}"
   echo "💻 Target: Local Browser File (file://)"
 else
-  TARGET="${PAGES_URL}${QUERY}"
+  TARGET="${PAGES_URL}"
   echo "🌐 Target: Hosted GitHub Pages Viewer"
 fi
 echo "🔗 ${TARGET}"

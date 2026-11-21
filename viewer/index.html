@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Raymond — Knowledge Graph Visualizer & Explorer</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕸️</text></svg>">
   
@@ -296,20 +299,17 @@
       <div>
         <h2 class="text-base font-bold text-white tracking-tight">Raymond Knowledge Graph</h2>
         <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-          No graph data loaded. Connect directly to your Raymond Supabase database, drop an exported JSON file, or load sample demo data.
+          Authentication required. No data is accessible without entering your Supabase credentials or importing a local JSON file.
         </p>
       </div>
       <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full pt-1">
         <button onclick="openSettingsModal()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-purple-950/50">
-          <i data-lucide="database" class="w-3.5 h-3.5"></i> Connect Supabase
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Connect Database
         </button>
         <button onclick="triggerJsonImport()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-medium text-xs flex items-center justify-center gap-2 transition">
           <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import JSON
         </button>
       </div>
-      <button onclick="loadDemoDataset()" class="text-[11px] text-slate-500 hover:text-amber-300 transition flex items-center gap-1.5 mt-1">
-        <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i> Or explore with sample demo graph
-      </button>
     </div>
   </div>
 
@@ -393,18 +393,13 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="px-5 py-3 border-t border-white/10 bg-dark-950 flex items-center justify-between">
-        <button onclick="loadDemoDataset()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition text-xs flex items-center gap-1.5">
-          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i> Load Demo Graph
+      <div class="px-5 py-3 border-t border-white/10 bg-dark-950 flex items-center justify-end gap-2">
+        <button onclick="closeSettingsModal()" class="px-3 py-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition text-xs">
+          Cancel
         </button>
-        <div class="flex items-center gap-2">
-          <button onclick="closeSettingsModal()" class="px-3 py-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition text-xs">
-            Cancel
-          </button>
-          <button onclick="saveAndConnectSupabase()" class="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shadow-lg shadow-purple-900/40 transition text-xs flex items-center gap-1.5">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i> Connect & Sync
-          </button>
-        </div>
+        <button onclick="saveAndConnectSupabase()" class="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shadow-lg shadow-purple-900/40 transition text-xs flex items-center gap-1.5">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i> Connect & Sync
+        </button>
       </div>
     </div>
   </div>
@@ -461,76 +456,12 @@
       };
     }
 
-    // --- BUILT-IN DEMO DATASET ---
+    // --- BUILT-IN DEMO DATASET (EMPTY - NO DATA LOADED WITHOUT AUTHENTICATION) ---
     const DEMO_DATASET = {
-      entities: [
-        { id: "e1", name: "TokenVault", type: "component", aliases: ["Vault", "KeyVault"], metadata: { language: "TypeScript" } },
-        { id: "e2", name: "AES-256-GCM", type: "technology", aliases: ["AES-GCM"], metadata: { key_bits: 256 } },
-        { id: "e3", name: "PBKDF2", type: "technology", aliases: ["KeyDerivation"], metadata: { rounds: 100000 } },
-        { id: "e4", name: "OAuth", type: "concept", aliases: ["OAuth2"], metadata: { rfc: "RFC 6749" } },
-        { id: "e5", name: "Supabase Edge Functions", type: "system", aliases: ["Deno Edge"], metadata: { provider: "Supabase" } },
-        { id: "e6", name: "pgvector", type: "technology", aliases: ["embeddings-store"], metadata: { index: "HNSW" } },
-        { id: "e7", name: "Google Gemini Embeddings", type: "system", aliases: ["gemini-embedding-001"], metadata: { dimensions: 768 } },
-        { id: "e8", name: "Raymond Memory Server", type: "component", aliases: ["Raymond", "RaymondMemorySystem"], metadata: { version: "1.1.0" } },
-        { id: "e9", name: "Antigravity Coordinator", type: "agent", aliases: ["Coordinator"], metadata: { role: "fleet-lead" } },
-        { id: "e10", name: "Coder Agent", type: "agent", aliases: ["coder_agent"], metadata: { role: "implementation" } },
-        { id: "e11", name: "SVGnest", type: "technology", aliases: ["svgnest"], metadata: { purpose: "2D nesting" } },
-        { id: "e12", name: "ConvexHull", type: "algorithm", aliases: ["MonotoneChain"], metadata: { complexity: "O(N log N)" } },
-      ],
-      relations: [
-        { id: "r1", src: "e1", dst: "e2", predicate: "uses", valid_from: "2026-11-15T12:00:00Z", valid_to: null, memory_id: "m1" },
-        { id: "r2", src: "e1", dst: "e3", predicate: "uses", valid_from: "2026-11-15T12:00:00Z", valid_to: null, memory_id: "m1" },
-        { id: "r3", src: "e1", dst: "e4", predicate: "protects", valid_from: "2026-11-15T12:00:00Z", valid_to: null, memory_id: "m1" },
-        { id: "r4", src: "e8", dst: "e5", predicate: "runs_on", valid_from: "2026-11-15T14:00:00Z", valid_to: null, memory_id: "m2" },
-        { id: "r5", src: "e8", dst: "e6", predicate: "stores_in", valid_from: "2026-11-15T14:00:00Z", valid_to: null, memory_id: "m2" },
-        { id: "r6", src: "e8", dst: "e7", predicate: "queries", valid_from: "2026-11-15T14:00:00Z", valid_to: null, memory_id: "m2" },
-        { id: "r7", src: "e11", dst: "e12", predicate: "accelerated_by", valid_from: "2026-11-19T18:31:00Z", valid_to: null, memory_id: "m3" },
-      ],
-      memories: [
-        {
-          id: "m1",
-          agent_id: "coder_agent",
-          session_id: "session_sec_audit",
-          category: "decision",
-          content: "TokenVault requires AES-256-GCM encryption with PBKDF2 key derivation for OAuth tokens to satisfy security compliance.",
-          tags: ["security", "oauth", "crypto"],
-          created_at: "2026-11-15T12:00:00Z"
-        },
-        {
-          id: "m2",
-          agent_id: "antigravity_lead",
-          session_id: "arch_review",
-          category: "fact",
-          content: "Raymond Edge memory server deployed onto Supabase Edge Runtime (Deno), connecting to pgvector with HNSW index and Gemini 768-dim embeddings.",
-          tags: ["architecture", "supabase", "pgvector"],
-          created_at: "2026-11-15T14:00:00Z"
-        },
-        {
-          id: "m3",
-          agent_id: "antigravity",
-          session_id: "amr-prepress",
-          category: "decision",
-          content: "Tool Architecture: 2D Shape Nesting with Convex Hull Proxy and SVGnest. Accelerates Minkowski sum from O(N*M) to O(N+M) and eliminates concave interlock.",
-          tags: ["nesting", "svgnest", "convex-hull"],
-          created_at: "2026-11-19T18:31:00Z"
-        },
-        {
-          id: "m4",
-          agent_id: "antigravity",
-          session_id: "fleet_preferences",
-          category: "preference",
-          content: "Always use internal interactive Knowledge Graph viewer over static charts when exploring entity topologies and memories.",
-          tags: ["preferences", "viewer", "ui"],
-          created_at: "2026-11-19T21:00:00Z"
-        }
-      ],
-      memory_entities: [
-        { memory_id: "m1", entity_id: "e1" },
-        { memory_id: "m1", entity_id: "e2" },
-        { memory_id: "m2", entity_id: "e8" },
-        { memory_id: "m3", entity_id: "e11" },
-        { memory_id: "m3", entity_id: "e12" }
-      ]
+      entities: [],
+      relations: [],
+      memories: [],
+      memory_entities: []
     };
 
     // --- INITIALIZATION ---
