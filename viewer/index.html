@@ -473,15 +473,26 @@
     });
 
     function loadStoredCredentials() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlParam = urlParams.get('supabaseUrl') || urlParams.get('url');
-      const keyParam = urlParams.get('supabaseKey') || urlParams.get('key') || urlParams.get('apikey');
+      const queryParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
+      const urlParam = hashParams.get('supabaseUrl') || hashParams.get('url') || queryParams.get('supabaseUrl') || queryParams.get('url');
+      const keyParam = hashParams.get('supabaseKey') || hashParams.get('key') || hashParams.get('apikey') || queryParams.get('supabaseKey') || queryParams.get('key') || queryParams.get('apikey');
 
       const savedUrl = urlParam || localStorage.getItem('raymond_supabase_url') || (window.__DEFAULT_SUPABASE_URL__ || '');
       const savedKey = keyParam || localStorage.getItem('raymond_supabase_key') || (window.__DEFAULT_SUPABASE_KEY__ || '');
 
       document.getElementById('cfgSupabaseUrl').value = savedUrl;
       document.getElementById('cfgSupabaseKey').value = savedKey;
+
+      // Clean address bar so credentials are saved in localStorage but not left in browser history
+      if (urlParam || keyParam) {
+        try {
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (_) {}
+      }
     }
 
     async function autoConnectOrDemo() {

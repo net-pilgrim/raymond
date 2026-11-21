@@ -155,13 +155,12 @@ update_memory(id="uuid-here", is_obsolete=True)
 ### 6. Displaying & Visualizing the Knowledge Graph (Zero-Runtime & Pure Client)
 
 > [!IMPORTANT]
-> **Strict Directive: ALWAYS use the Raymond Visual Viewer to display or visualize the Knowledge Graph.**
-> - Whenever asked to display, view, show, or visualize the Knowledge Graph (or explore graph topology, entities, and relations), **ALWAYS provide the viewer link or launch it**.
-> - **Zero-Runtime Methods (No Python, No Node.js Needed)**:
->   1. **Hosted Web Viewer (GitHub Pages)**: `https://net-pilgrim.github.io/raymond/` (Zero local footprint, accessible on any device).
->   2. **1-Click Terminal Launch**: Run `./open-viewer.sh` to automatically launch the viewer with auto-detected Supabase credentials.
->   3. **Direct Local File**: `viewer/index.html` (e.g. `file:///home/dsv/work/mnesia/viewer/index.html` or `./open-viewer.sh --local`).
->   4. **Offline Drag-and-Drop**: Users can drag and drop any exported `graph.json` directly onto the canvas to explore.
+> **Strict Directive: ALWAYS launch the viewer directly when the user asks to see or visualize the Knowledge Graph.**
+> - Whenever asked to display, view, show, or visualize the Knowledge Graph (or explore graph topology, entities, and relations):
+>   1. **IMMEDIATELY EXECUTE `./open-viewer.sh`** using `run_command`. This automatically detects Supabase credentials and opens the viewer directly in the user's default browser (via `xdg-open` or WSL Windows browser).
+>   2. **Provide the direct 1-click viewer link** in markdown (with hash `#url=...&key=...` which auto-connects in the browser and self-cleans from the address bar).
+>   3. **Provide a summary of the current graph stats** (entity count, relation count, memory count, major clusters).
+> - **NEVER tell the user to manually copy-paste keys** or configure modals if `./open-viewer.sh` can launch it directly.
 > - **NEVER generate Mermaid diagrams, ASCII trees, or text mockups** to visualize the Knowledge Graph. (Mermaid diagram directives in memories/instructions apply strictly to technical documentation and README files, NEVER to displaying the knowledge graph).
 > - The internal interactive viewer provides force-directed physics, hierarchical DAG layout, neighborhood isolation (1-hop / 2-hop), real-time search auto-focus, interactive drag-to-connect linking, and full Markdown memory inspection.
 

@@ -52,7 +52,7 @@ done
 
 QUERY=""
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
-  QUERY="?url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
+  QUERY="#url=${SUPABASE_URL}&key=${SUPABASE_KEY}"
   echo "✨ Auto-detected Supabase credentials: ${SUPABASE_URL}"
 fi
 
@@ -60,7 +60,7 @@ if [ "$USE_LOCAL" = true ]; then
   TARGET="file://${VIEWER_HTML}${QUERY}"
   echo "💻 Target: Local Browser File (file://)"
 else
-  TARGET="${PAGES_URL}"
+  TARGET="${PAGES_URL}${QUERY}"
   echo "🌐 Target: Hosted GitHub Pages Viewer"
 fi
 echo "🔗 ${TARGET}"
@@ -69,12 +69,15 @@ echo "🕸️ Opening Raymond Knowledge Graph Viewer in your default browser..."
 
 # Detect environment and launch browser
 if [[ -n "$WSL_DISTRO_NAME" ]] || grep -qi microsoft /proc/version 2>/dev/null; then
-  # WSL environment:
-  if [ "$USE_LOCAL" = true ] && command -v wslpath >/dev/null 2>&1 && command -v cmd.exe >/dev/null 2>&1; then
+  # WSL environment: escape & as ^& for cmd.exe
+  if [ "$USE_LOCAL" = true ] && command -v wslpath >/dev/null 2>&1; then
     WIN_PATH=$(wslpath -m "$VIEWER_HTML")
-    (cmd.exe /c start "" "file:${WIN_PATH}${QUERY}" >/dev/null 2>&1 &)
+    LOCAL_TARGET="file://${WIN_PATH}${QUERY}"
+    ESCAPED_TARGET="${LOCAL_TARGET//&/^&}"
+    (cmd.exe /c start "" "$ESCAPED_TARGET" >/dev/null 2>&1 &)
   else
-    (cmd.exe /c start "" "$TARGET" >/dev/null 2>&1 &)
+    ESCAPED_TARGET="${TARGET//&/^&}"
+    (cmd.exe /c start "" "$ESCAPED_TARGET" >/dev/null 2>&1 &)
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   # macOS
