@@ -185,8 +185,8 @@
 
       <!-- Live Connection Status Badge -->
       <button id="btnConnectionStatus" onclick="openSettingsModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition text-xs text-slate-300">
-        <span id="statusIndicator" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-        <span id="statusText">Connecting...</span>
+        <span id="statusIndicator" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span id="statusText">Not Connected</span>
       </button>
 
       <!-- Refresh Button -->
@@ -286,6 +286,32 @@
 
   <!-- Graph Canvas Container -->
   <div id="graphContainer" class="flex-1 w-full h-full"></div>
+
+  <!-- Empty State Overlay when unauthenticated / no data loaded -->
+  <div id="emptyStateOverlay" class="hidden absolute inset-0 top-14 z-20 flex flex-col items-center justify-center pointer-events-auto bg-dark-950/60 backdrop-blur-[2px]">
+    <div class="max-w-md p-8 rounded-2xl bg-dark-900/90 border border-white/10 shadow-2xl text-center flex flex-col items-center gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-2xl shadow-inner">
+        🕸️
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-white tracking-tight">Raymond Knowledge Graph</h2>
+        <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+          No graph data loaded. Connect directly to your Raymond Supabase database, drop an exported JSON file, or load sample demo data.
+        </p>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full pt-1">
+        <button onclick="openSettingsModal()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-purple-950/50">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Connect Supabase
+        </button>
+        <button onclick="triggerJsonImport()" class="w-full sm:flex-1 py-2 px-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-medium text-xs flex items-center justify-center gap-2 transition">
+          <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import JSON
+        </button>
+      </div>
+      <button onclick="loadDemoDataset()" class="text-[11px] text-slate-500 hover:text-amber-300 transition flex items-center gap-1.5 mt-1">
+        <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i> Or explore with sample demo graph
+      </button>
+    </div>
+  </div>
 
   <!-- Floating Drag-to-Connect Indicator Pill -->
   <div id="dropConnectPill" class="hidden fixed z-50 pointer-events-none bg-emerald-600/95 text-white font-semibold text-xs px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md border border-emerald-400 flex items-center gap-1.5 transition-opacity">
@@ -551,10 +577,14 @@
           await fetchFromSupabase(url, key);
           return;
         } catch (e) {
-          console.warn("Auto-connect failed, falling back to demo dataset:", e);
+          console.warn("Auto-connect failed:", e);
         }
       }
-      loadDemoDataset();
+
+      // 3. Unauthenticated / No credentials configured:
+      // Do NOT auto-load demo data. Render empty canvas and set disconnected badge.
+      updateStatusBadge('disconnected', 'Not Connected');
+      renderGraph();
     }
 
     // --- PURE CLIENT OFFLINE IMPORT & DRAG-AND-DROP ---
@@ -1100,6 +1130,17 @@
 
       const unlinkedEntities = getUnlinkedMemoryEntities();
       const allGraphNodes = [...rawEntities, ...unlinkedEntities];
+
+      // Empty State Overlay Visibility
+      const emptyOverlay = document.getElementById('emptyStateOverlay');
+      if (emptyOverlay) {
+        if (allGraphNodes.length === 0) {
+          emptyOverlay.classList.remove('hidden');
+          lucide.createIcons();
+        } else {
+          emptyOverlay.classList.add('hidden');
+        }
+      }
 
       // 1. Determine active entity set based on Hop Focus Mode
       let allowedEntityIds = null;
@@ -1843,7 +1884,7 @@
           alert("Failed to refresh from Supabase: " + e.message);
         }
       } else {
-        loadDemoDataset();
+        openSettingsModal();
       }
     }
 
@@ -1859,6 +1900,8 @@
         indicator.classList.add('bg-amber-400', 'animate-pulse');
       } else if (state === 'demo') {
         indicator.classList.add('bg-sky-400');
+      } else if (state === 'disconnected') {
+        indicator.classList.add('bg-slate-500');
       } else {
         indicator.classList.add('bg-red-400');
       }
