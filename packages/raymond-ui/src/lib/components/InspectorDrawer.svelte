@@ -45,25 +45,40 @@
     return selectedItem && dst === selectedItem.id;
   });
 
-  // Extract Markdown Description on the Entity itself
-  $: entityMarkdown = (() => {
+  // Extract Summary, Content, or Description on the Entity itself or from grounded memories
+  $: entitySummaryOrContent = (() => {
     if (!selectedItem || isMemory || isRelation) return '';
-    return (
-      selectedItem.metadata?.description ||
-      selectedItem.metadata?.summary ||
-      selectedItem.metadata?.notes ||
-      selectedItem.metadata?.content ||
-      selectedItem.metadata?.statement ||
-      selectedItem.metadata?.details ||
-      selectedItem.metadata?.markdown ||
-      selectedItem.metadata?.spec ||
-      selectedItem.metadata?.text ||
-      selectedItem.description ||
-      selectedItem.summary ||
-      selectedItem.notes ||
-      selectedItem.content ||
-      ''
-    );
+    // 1. Direct summary / content on root entity
+    if (selectedItem.summary) return selectedItem.summary;
+    if (selectedItem.content) return selectedItem.content;
+    if (selectedItem.description) return selectedItem.description;
+    if (selectedItem.notes) return selectedItem.notes;
+    if (selectedItem.statement) return selectedItem.statement;
+    if (selectedItem.details) return selectedItem.details;
+
+    // 2. Metadata properties
+    if (selectedItem.metadata) {
+      const m = selectedItem.metadata;
+      if (m.summary) return m.summary;
+      if (m.content) return m.content;
+      if (m.description) return m.description;
+      if (m.notes) return m.notes;
+      if (m.full_content) return m.full_content;
+      if (m.statement) return m.statement;
+      if (m.details) return m.details;
+      if (m.markdown) return m.markdown;
+      if (m.text) return m.text;
+      if (m.overview) return m.overview;
+      if (m.spec) return typeof m.spec === 'string' ? m.spec : JSON.stringify(m.spec, null, 2);
+    }
+
+    // 3. Fallback to primary grounded memory content if linked
+    if (groundedMemories && groundedMemories.length > 0) {
+      const primary = groundedMemories.find(m => m.content && m.content.trim().length > 0);
+      if (primary) return primary.content;
+    }
+
+    return '';
   })();
 
   // Grounded memories
@@ -288,27 +303,27 @@
               <span class="label">Connections</span>
               <span class="val font-mono">{outboundRelations.length + inboundRelations.length} links ({groundedMemories.length} memories)</span>
             </div>
+
+            <!-- Summary / Content Rendered as Markdown in Details Panel -->
+            {#if entitySummaryOrContent}
+              <div class="detail-summary-card">
+                <div class="summary-label font-mono">
+                  <BookOpen size={13} class="sec-icon amber" />
+                  <span>Summary & Content</span>
+                </div>
+                <div class="markdown-body prose-dark">
+                  {@html renderMarkdown(entitySummaryOrContent)}
+                </div>
+              </div>
+            {/if}
           </div>
 
-          <!-- PRIMARY KNOWLEDGE: Entity Description & Knowledge Notes -->
-          {#if entityMarkdown}
-            <div class="section">
-              <div class="section-title">
-                <BookOpen size={14} class="sec-icon amber" />
-                <span>Description & Knowledge Notes</span>
-              </div>
-              <div class="markdown-card prose-dark">
-                {@html renderMarkdown(entityMarkdown)}
-              </div>
-            </div>
-          {/if}
-
-          <!-- PRIMARY KNOWLEDGE: Grounded Memories (with full Markdown content) -->
-          {#if groundedMemories.length > 0}
+          <!-- Additional Grounded Memories (if multiple exist) -->
+          {#if groundedMemories.length > 1}
             <div class="section">
               <div class="section-title">
                 <FileText size={14} class="sec-icon purple" />
-                <span>Grounded Knowledge & Memories ({groundedMemories.length})</span>
+                <span>All Grounded Evidence Memories ({groundedMemories.length})</span>
               </div>
               <div class="memories-list">
                 {#each groundedMemories as mem}
@@ -331,14 +346,6 @@
                   </div>
                 {/each}
               </div>
-            </div>
-          {:else if !entityMarkdown}
-            <div class="section">
-              <div class="section-title">
-                <BookOpen size={14} class="sec-icon amber" />
-                <span>Knowledge Notes</span>
-              </div>
-              <div class="empty-hint font-mono">No markdown description or grounded memories linked to this entity.</div>
             </div>
           {/if}
 
@@ -776,6 +783,29 @@
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
+  }
+
+  .detail-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.85rem;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    margin-top: 0.25rem;
+  }
+
+  .summary-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--amber-400);
   }
 
   .detail-row {
