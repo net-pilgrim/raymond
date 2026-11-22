@@ -68,11 +68,48 @@ export function getSupabaseClient(overrideUrl?: string, overrideKey?: string): S
 
 // --- AUTHENTICATION HELPERS ---
 
+export async function setSessionFromTokens(accessToken: string, refreshToken?: string): Promise<{ session: Session | null; error: Error | null }> {
+  try {
+    const client = getSupabaseClient();
+    const { data, error } = await client.auth.setSession({
+      access_token: accessToken.trim(),
+      refresh_token: (refreshToken || '').trim(),
+    });
+    return { session: data.session, error };
+  } catch (err: any) {
+    return { session: null, error: err };
+  }
+}
+
+export async function initializeAuthFromUrl(): Promise<Session | null> {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash.replace(/^#/, '');
+  if (!hash) return null;
+
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+
+  if (accessToken) {
+    const { session, error } = await setSessionFromTokens(accessToken, refreshToken || undefined);
+    if (!error && session) {
+      try {
+        history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      } catch (_) {}
+      return session;
+    }
+  }
+  return null;
+}
+
 export async function getCurrentSession(): Promise<Session | null> {
   try {
     const client = getSupabaseClient();
     const { data: { session } } = await client.auth.getSession();
-    return session;
+    if (session) return session;
+
+    // Check if tokens are present in window.location.hash (e.g. from magic link redirect)
+    return await initializeAuthFromUrl();
   } catch {
     return null;
   }
@@ -82,7 +119,10 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const client = getSupabaseClient();
     const { data: { user } } = await client.auth.getUser();
-    return user;
+    if (user) return user;
+
+    const session = await initializeAuthFromUrl();
+    return session?.user || null;
   } catch {
     return null;
   }

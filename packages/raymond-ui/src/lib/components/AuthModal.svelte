@@ -8,7 +8,8 @@
   import type { Agent } from '../types';
   import {
     signInWithMagicLink, signInWithOAuth, signOut,
-    fetchUserAgents, registerAgent, getCurrentSession, getStoredCredentials
+    fetchUserAgents, registerAgent, getCurrentSession, getStoredCredentials,
+    setSessionFromTokens
   } from '../supabase';
 
   export let isOpen = false;
@@ -17,6 +18,8 @@
   export let onAuthSuccess: () => void;
 
   let email = '';
+  let manualToken = '';
+  let showManualToken = false;
   let isLoading = false;
   let statusType: 'idle' | 'success' | 'error' = 'idle';
   let statusMessage = '';
@@ -112,11 +115,52 @@
 
   async function handleOAuth(provider: 'github' | 'google') {
     isLoading = true;
+    statusType = 'idle';
+    statusMessage = '';
     const { error } = await signInWithOAuth(provider);
+    isLoading = false;
     if (error) {
-      isLoading = false;
       statusType = 'error';
-      statusMessage = error.message || `Failed to sign in with ${provider}.`;
+      const msg = error.message || '';
+      if (msg.includes('not enabled') || msg.includes('Unsupported provider') || msg.includes('validation_failed')) {
+        statusMessage = `${provider === 'github' ? 'GitHub' : 'Google'} OAuth is not configured in your Supabase project. To enable it, configure Client ID and Secret in Supabase Dashboard -> Authentication -> Providers.`;
+      } else {
+        statusMessage = msg || `Failed to sign in with ${provider}.`;
+      }
+    }
+  }
+
+  async function handleManualTokenLogin() {
+    if (!manualToken.trim()) return;
+    isLoading = true;
+    statusType = 'idle';
+    statusMessage = '';
+
+    let cleanToken = manualToken.trim();
+    let refreshToken: string | undefined = undefined;
+
+    // Handle full redirect URL containing hash parameters
+    if (cleanToken.includes('access_token=')) {
+      try {
+        const hashPart = cleanToken.includes('#') ? cleanToken.split('#')[1] : cleanToken;
+        const p = new URLSearchParams(hashPart);
+        cleanToken = p.get('access_token') || cleanToken;
+        refreshToken = p.get('refresh_token') || undefined;
+      } catch (_) {}
+    }
+
+    const { session, error } = await setSessionFromTokens(cleanToken, refreshToken);
+    isLoading = false;
+    if (error || !session) {
+      statusType = 'error';
+      statusMessage = error?.message || 'Invalid access token. Please check and try again.';
+    } else {
+      currentUser = session.user;
+      statusType = 'success';
+      statusMessage = 'Signed in successfully!';
+      manualToken = '';
+      onAuthSuccess();
+      setTimeout(onClose, 600);
     }
   }
 
@@ -380,6 +424,31 @@
             </button>
           </div>
 
+          <div class="manual-token-toggle">
+            <button class="toggle-link" on:click={() => (showManualToken = !showManualToken)}>
+              <Key size={12} />
+              <span>{showManualToken ? 'Hide token login' : 'Already have an access token or redirect URL?'}</span>
+            </button>
+          </div>
+
+          {#if showManualToken}
+            <div class="manual-token-box">
+              <label for="manual-token-input">Paste Bearer Access Token or Magic Link URL</label>
+              <div class="input-row">
+                <input
+                  id="manual-token-input"
+                  type="text"
+                  placeholder="eyJhbGciOi... or http://localhost:3000/#access_token=..."
+                  bind:value={manualToken}
+                  class="font-mono text-xs"
+                />
+                <button class="btn primary btn-sm" on:click={handleManualTokenLogin} disabled={isLoading || !manualToken.trim()}>
+                  <span>Sign In</span>
+                </button>
+              </div>
+            </div>
+          {/if}
+
           <div class="guest-action">
             <button class="guest-btn" on:click={onClose}>
               <Sparkles size={13} />
@@ -633,6 +702,51 @@
 
   .guest-btn:hover {
     color: var(--brand-400);
+  }
+
+  .manual-token-toggle {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.25rem;
+  }
+
+  .toggle-link {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .toggle-link:hover {
+    color: var(--brand-400);
+  }
+
+  .manual-token-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+
+  .manual-token-box label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
   }
 
   /* Authenticated User Profile Styling */
