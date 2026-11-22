@@ -159,6 +159,8 @@ erDiagram
 
 ## 🌐 Interactive Knowledge Graph Visualizer & Explorer
 
+<img width="1907" height="1062" alt="image" src="https://github.com/user-attachments/assets/2797b2e6-6a5f-409b-a60e-8ec8f0d46a25" />
+
 Raymond includes a modern, zero-dependency, standalone graphical browser for visualizing and exploring entities, relations, and grounded memories:
 
 - 🎮 **Force-Directed & Hierarchical (DAG) Physics**: Pan, zoom, drag nodes, and toggle between organic clustering or tree layouts.
