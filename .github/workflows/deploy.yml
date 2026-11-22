@@ -61,6 +61,26 @@ jobs:
             supabase secrets set OPENAI_API_KEY="$OPENAI_API_KEY" --project-ref "$PROJECT_REF" --yes
           fi
 
+      - name: Push Database Migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ steps.project_info.outputs.PROJECT_REF }}
+        run: |
+          echo "Checking for database migrations in supabase/migrations..."
+          if [ -d "supabase/migrations" ] && [ "$(ls -A supabase/migrations/*.sql 2>/dev/null)" ]; then
+            echo "Applying pending migrations to Supabase project $PROJECT_REF..."
+            if [ -n "$SUPABASE_DB_PASSWORD" ]; then
+              supabase db push --remote "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --include-all --yes
+            else
+              supabase migration up --remote "$PROJECT_REF" --include-all --yes || \
+              supabase db push --remote "$PROJECT_REF" --include-all --yes || \
+              echo "::warning::Automated migration push requires SUPABASE_DB_PASSWORD secret or an access token with database_write scope. If this step failed, run the migrations manually via Supabase Dashboard SQL Editor."
+            fi
+          else
+            echo "No migration files found. Skipping."
+          fi
+
       - name: Deploy Edge Function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
