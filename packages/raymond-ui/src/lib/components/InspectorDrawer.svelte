@@ -25,6 +25,15 @@
     showDeleteConfirm = false;
   }
 
+  $: isRelation = Boolean(selectedItem && (selectedItem.predicate || (selectedItem.src && selectedItem.dst)));
+  $: isMemory = Boolean(selectedItem && selectedItem.type === 'memory' && !isRelation);
+  $: isEntity = Boolean(selectedItem && !isRelation && !isMemory);
+
+  $: relationSrc = isRelation ? (selectedItem.src || selectedItem.source_id) : '';
+  $: relationDst = isRelation ? (selectedItem.dst || selectedItem.target_id) : '';
+  $: relationPredicate = isRelation ? selectedItem.predicate : '';
+  $: relationEvidenceMem = isRelation ? (allMemories || []).find(m => m.id === selectedItem.memory_id || m.id === selectedItem.metadata?.memory_id || m.id === selectedItem.metadata?.grounded_memory_id) : null;
+
   // Relations matching this entity
   $: outboundRelations = (allRelations || []).filter(r => {
     const src = r.src || (r as any).source_id;
@@ -38,7 +47,7 @@
 
   // Extract Markdown Description on the Entity itself
   $: entityMarkdown = (() => {
-    if (!selectedItem || selectedItem.type === 'memory') return '';
+    if (!selectedItem || isMemory || isRelation) return '';
     return (
       selectedItem.metadata?.description ||
       selectedItem.metadata?.summary ||
@@ -46,16 +55,26 @@
       selectedItem.metadata?.content ||
       selectedItem.metadata?.statement ||
       selectedItem.metadata?.details ||
+      selectedItem.metadata?.markdown ||
+      selectedItem.metadata?.spec ||
+      selectedItem.metadata?.text ||
       selectedItem.description ||
+      selectedItem.summary ||
+      selectedItem.notes ||
+      selectedItem.content ||
       ''
     );
   })();
 
   // Grounded memories
   $: groundedMemories = (() => {
-    if (!selectedItem) return [];
+    if (!selectedItem || isMemory || isRelation) return [];
     const entityId = selectedItem.id;
     const memIds = new Set<string>();
+
+    if (selectedItem.metadata?.grounded_memory_id) memIds.add(selectedItem.metadata.grounded_memory_id);
+    if (selectedItem.metadata?.memory_id) memIds.add(selectedItem.metadata.memory_id);
+    if (selectedItem.metadata?.source_memory_id) memIds.add(selectedItem.metadata.source_memory_id);
 
     (memoryEntities || []).forEach(me => {
       if (me.entity_id === entityId) memIds.add(me.memory_id);
@@ -63,6 +82,8 @@
 
     outboundRelations.concat(inboundRelations).forEach((r: any) => {
       if (r.memory_id) memIds.add(r.memory_id);
+      if (r.metadata?.memory_id) memIds.add(r.metadata.memory_id);
+      if (r.metadata?.grounded_memory_id) memIds.add(r.metadata.grounded_memory_id);
     });
 
     return (allMemories || []).filter(m => memIds.has(m.id));
@@ -73,12 +94,12 @@
     return ent ? ent.name : id;
   }
 
-  function renderMarkdown(md: string) {
+  function renderMarkdown(md: string): string {
     if (!md) return '';
     try {
-      return marked.parse(md);
+      return marked.parse(String(md), { gfm: true, breaks: true, async: false }) as string;
     } catch (_) {
-      return md;
+      return String(md);
     }
   }
 
@@ -100,11 +121,16 @@
       <!-- Header -->
       <div class="drawer-header">
         <div class="header-main">
-          <span class="type-badge font-mono">{selectedItem.type || 'entity'}</span>
-          <h2 class="item-title">{selectedItem.name || selectedItem.id}</h2>
+          {#if isRelation}
+            <span class="type-badge font-mono relation">relation</span>
+            <h2 class="item-title font-mono">{getEntityName(relationSrc)} ➔ {relationPredicate} ➔ {getEntityName(relationDst)}</h2>
+          {:else}
+            <span class="type-badge font-mono">{selectedItem.type || 'entity'}</span>
+            <h2 class="item-title">{selectedItem.name || selectedItem.id}</h2>
+          {/if}
         </div>
         <div class="header-actions">
-          {#if selectedItem.type !== 'memory'}
+          {#if isEntity}
             <button
               class="hdr-btn"
               on:click={() => onFocusNeighborhood(selectedItem.id)}
@@ -129,8 +155,80 @@
       </div>
 
       <div class="drawer-content">
+        <!-- Relation Details View -->
+        {#if isRelation}
+          <div class="entity-details">
+            <div class="detail-row">
+              <span class="label">Predicate</span>
+              <span class="val font-mono highlight-predicate">{relationPredicate}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">Source Node</span>
+              <button class="target-link font-sans" on:click={() => onInspectNode(relationSrc)}>
+                {getEntityName(relationSrc)}
+              </button>
+            </div>
+            <div class="detail-row">
+              <span class="label">Target Node</span>
+              <button class="target-link font-sans" on:click={() => onInspectNode(relationDst)}>
+                {getEntityName(relationDst)}
+              </button>
+            </div>
+            <div class="detail-row">
+              <span class="label">Status</span>
+              <span class="val font-mono">
+                {#if selectedItem.valid_to}
+                  <span class="sup-tag font-mono">superseded ({formatTime(selectedItem.valid_to)})</span>
+                {:else}
+                  <span class="active-tag font-mono">active (since {formatTime(selectedItem.valid_from)})</span>
+                {/if}
+              </span>
+            </div>
+          </div>
+
+          <!-- Grounded Evidence Memory for Relation -->
+          {#if relationEvidenceMem}
+            <div class="section">
+              <div class="section-title">
+                <FileText size={14} class="sec-icon purple" />
+                <span>Grounded Evidence Memory</span>
+              </div>
+              <div class="mem-snippet-card">
+                <div class="mem-meta font-mono">
+                  <span class="cat-pill">{relationEvidenceMem.category || 'evidence'}</span>
+                  <span class="agent-pill">👤 {relationEvidenceMem.agent_id || relationEvidenceMem.author_agent || 'agent'}</span>
+                  <span class="time-faint">{formatTime(relationEvidenceMem.created_at)}</span>
+                </div>
+                <div class="mem-body prose-dark">
+                  {@html renderMarkdown(relationEvidenceMem.content)}
+                </div>
+                {#if relationEvidenceMem.tags && relationEvidenceMem.tags.length > 0}
+                  <div class="mem-tags font-mono">
+                    {#each relationEvidenceMem.tags as tag}
+                      <span class="tag-chip">#{tag}</span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
+          <!-- Delete Relation Action -->
+          <div class="danger-zone">
+            <button
+              class="del-entity-btn"
+              on:click={() => {
+                onDeleteRelation(selectedItem.id);
+                onClose();
+              }}
+            >
+              <Trash2 size={13} />
+              <span>Delete Relation</span>
+            </button>
+          </div>
+
         <!-- Memory Content View (for Gray unlinked memories) -->
-        {#if selectedItem.type === 'memory'}
+        {:else if isMemory}
           <div class="memory-card">
             <div class="meta-row font-mono">
               {#if selectedItem.agent_id || selectedItem.author_agent || selectedItem.metadata?.agent_id}
@@ -153,7 +251,11 @@
               {/if}
             </div>
 
-            <div class="markdown-body prose-dark">
+            <div class="section-title" style="margin-top: 0.65rem;">
+              <FileText size={14} class="sec-icon purple" />
+              <span>Memory Content</span>
+            </div>
+            <div class="markdown-card prose-dark">
               {@html renderMarkdown(selectedItem.content || selectedItem.metadata?.full_content || selectedItem.name)}
             </div>
 
@@ -188,7 +290,7 @@
             </div>
           </div>
 
-          <!-- Entity Markdown Description / Knowledge Notes -->
+          <!-- PRIMARY KNOWLEDGE: Entity Description & Knowledge Notes -->
           {#if entityMarkdown}
             <div class="section">
               <div class="section-title">
@@ -198,6 +300,45 @@
               <div class="markdown-card prose-dark">
                 {@html renderMarkdown(entityMarkdown)}
               </div>
+            </div>
+          {/if}
+
+          <!-- PRIMARY KNOWLEDGE: Grounded Memories (with full Markdown content) -->
+          {#if groundedMemories.length > 0}
+            <div class="section">
+              <div class="section-title">
+                <FileText size={14} class="sec-icon purple" />
+                <span>Grounded Knowledge & Memories ({groundedMemories.length})</span>
+              </div>
+              <div class="memories-list">
+                {#each groundedMemories as mem}
+                  <div class="mem-snippet-card">
+                    <div class="mem-meta font-mono">
+                      <span class="cat-pill">{mem.category || 'general'}</span>
+                      <span class="agent-pill">👤 {mem.agent_id || mem.author_agent || 'agent'}</span>
+                      <span class="time-faint">{formatTime(mem.created_at)}</span>
+                    </div>
+                    <div class="mem-body prose-dark">
+                      {@html renderMarkdown(mem.content)}
+                    </div>
+                    {#if mem.tags && mem.tags.length > 0}
+                      <div class="mem-tags font-mono">
+                        {#each mem.tags as tag}
+                          <span class="tag-chip">#{tag}</span>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {:else if !entityMarkdown}
+            <div class="section">
+              <div class="section-title">
+                <BookOpen size={14} class="sec-icon amber" />
+                <span>Knowledge Notes</span>
+              </div>
+              <div class="empty-hint font-mono">No markdown description or grounded memories linked to this entity.</div>
             </div>
           {/if}
 
@@ -278,39 +419,6 @@
               </div>
             {:else}
               <div class="empty-hint font-mono">No inbound relations</div>
-            {/if}
-          </div>
-
-          <!-- Grounded Memories (with full Markdown content) -->
-          <div class="section">
-            <div class="section-title">
-              <FileText size={14} class="sec-icon purple" />
-              <span>Grounded Memories ({groundedMemories.length})</span>
-            </div>
-            {#if groundedMemories.length > 0}
-              <div class="memories-list">
-                {#each groundedMemories as mem}
-                  <div class="mem-snippet-card">
-                    <div class="mem-meta font-mono">
-                      <span class="cat-pill">{mem.category || 'general'}</span>
-                      <span class="agent-pill">👤 {mem.agent_id || mem.author_agent || 'agent'}</span>
-                      <span class="time-faint">{formatTime(mem.created_at)}</span>
-                    </div>
-                    <div class="mem-body prose-dark">
-                      {@html renderMarkdown(mem.content)}
-                    </div>
-                    {#if mem.tags && mem.tags.length > 0}
-                      <div class="mem-tags font-mono">
-                        {#each mem.tags as tag}
-                          <span class="tag-chip">#{tag}</span>
-                        {/each}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <div class="empty-hint font-mono">No grounded memories linked to this entity</div>
             {/if}
           </div>
 
@@ -428,6 +536,26 @@
     text-transform: uppercase;
     color: var(--cyan-400);
     letter-spacing: 0.05em;
+  }
+
+  .type-badge.relation {
+    color: var(--brand-400);
+  }
+
+  .highlight-predicate {
+    color: var(--cyan-400);
+    background: rgba(56, 189, 248, 0.15);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+  }
+
+  .active-tag {
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.1rem 0.35rem;
+    border-radius: 2px;
+    font-size: 0.65rem;
   }
 
   .item-title {

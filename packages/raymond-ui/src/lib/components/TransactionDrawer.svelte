@@ -1,9 +1,19 @@
 <script lang="ts">
   import type { Transaction } from '../types';
   import { X, ArrowRight, Clock, ShieldCheck, FileText, CheckCircle2, AlertCircle, Sparkles } from '@lucide/svelte';
+  import { marked } from 'marked';
 
   export let transaction: Transaction | null = null;
   export let onClose: () => void;
+
+  function renderMarkdown(md: string): string {
+    if (!md) return '';
+    try {
+      return marked.parse(String(md), { gfm: true, breaks: true, async: false }) as string;
+    } catch (_) {
+      return String(md);
+    }
+  }
 
   function formatIso(iso: string) {
     try {
@@ -149,7 +159,7 @@
                       <span class="act-actor">{act.actor_id} ({act.role})</span>
                       <span class="act-time">{formatIso(act.created_at)}</span>
                     </div>
-                    <div class="act-message">{act.message}</div>
+                    <div class="act-message prose-dark">{@html renderMarkdown(act.message)}</div>
                     {#if act.payload && Object.keys(act.payload).length > 0}
                       <pre class="act-payload font-mono">{JSON.stringify(act.payload, null, 2)}</pre>
                     {/if}

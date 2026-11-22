@@ -259,14 +259,78 @@ export const DEMO_TRANSACTIONS: Transaction[] = [
 
 export const DEMO_GRAPH_DATA: KnowledgeGraphData = {
   entities: [
-    { id: 'e1', name: 'Raymond Engine', type: 'system', aliases: ['mnesia', 'raymond-core'] },
-    { id: 'e2', name: 'Supabase Edge MCP', type: 'component', aliases: ['mcp-server'] },
-    { id: 'e3', name: 'PostgreSQL + pgvector', type: 'technology', aliases: ['supabase-db'] },
-    { id: 'e4', name: 'Dietz-Burgess Protocol', type: 'concept', aliases: ['p-facts', 'promise-theory'] },
-    { id: 'e5', name: 'Interactive Svelte UI', type: 'component', aliases: ['raymond-ui'] },
-    { id: 'e6', name: 'Google Gemini 768-dim', type: 'technology', aliases: ['gemini-embeddings'] },
-    { id: 'e7', name: 'Lead Orchestrator', type: 'agent', aliases: ['coordinator'] },
-    { id: 'e8', name: 'Zero Tailwind Rule', type: 'decision', aliases: ['pure-css'] },
+    {
+      id: 'e1',
+      name: 'Raymond Engine',
+      type: 'system',
+      aliases: ['mnesia', 'raymond-core'],
+      metadata: {
+        description: '## Raymond Core Memory Engine\n\nStateless multi-agent coordination system providing **hybrid relational and vector memory** over Supabase Edge & pgvector.\n\n### Key Capabilities\n- **Sub-50ms** semantic search via 768-dim embeddings\n- **Strict Dietz-Burgess** transaction state machines\n- Real-time audit logs and grounded facts graph'
+      }
+    },
+    {
+      id: 'e2',
+      name: 'Supabase Edge MCP',
+      type: 'component',
+      aliases: ['mcp-server'],
+      metadata: {
+        description: '## Supabase Edge MCP Server\n\nHigh-performance Deno TypeScript edge runtime exposing MCP tools over Server-Sent Events (SSE).\n\n```typescript\n// Serverless Edge Entrypoint\nDeno.serve(async (req: Request) => {\n  return handleMcpRequest(req);\n});\n```'
+      }
+    },
+    {
+      id: 'e3',
+      name: 'PostgreSQL + pgvector',
+      type: 'technology',
+      aliases: ['supabase-db'],
+      metadata: {
+        description: '## PostgreSQL Storage & pgvector\n\nPersistent store enforcing relational constraints and **HNSW indexing** for cosine distance similarity matching.'
+      }
+    },
+    {
+      id: 'e4',
+      name: 'Dietz-Burgess Protocol',
+      type: 'concept',
+      aliases: ['p-facts', 'promise-theory'],
+      metadata: {
+        description: '## Dietz-Burgess Transaction Protocol\n\nFormal multi-agent communication protocol combining Jan Dietz DEMO transaction theory with Mark Burgess Promise Theory.\n\n### Transaction Life Cycle\n1. **REQUEST**: Initiator asks for a production fact\n2. **PROMISE**: Executor guarantees fulfillment under SLA\n3. **DECLARE**: Executor states deliverables are ready\n4. **ACCEPT**: Initiator accepts and grounds the fact into the Knowledge Graph'
+      }
+    },
+    {
+      id: 'e5',
+      name: 'Interactive Svelte UI',
+      type: 'component',
+      aliases: ['raymond-ui'],
+      metadata: {
+        description: '## Raymond Svelte 5 Visualizer\n\nInteractive Knowledge Graph Explorer & Multi-Agent Transaction Kanban board built with **Svelte 5 Runes**, **Vis Network**, and pure bespoke CSS.'
+      }
+    },
+    {
+      id: 'e6',
+      name: 'Google Gemini 768-dim',
+      type: 'technology',
+      aliases: ['gemini-embeddings'],
+      metadata: {
+        description: '## Google Gemini Embeddings\n\n`text-embedding-004` 768-dimensional vector representations capturing dense semantic meaning across agent knowledge traces.'
+      }
+    },
+    {
+      id: 'e7',
+      name: 'Lead Orchestrator',
+      type: 'agent',
+      aliases: ['coordinator'],
+      metadata: {
+        description: '## Lead Orchestrator Agent\n\nAutonomous fleet coordinator responsible for dispatching requests, supervising promises, and verifying agent deliverables.'
+      }
+    },
+    {
+      id: 'e8',
+      name: 'Zero Tailwind Rule',
+      type: 'decision',
+      aliases: ['pure-css'],
+      metadata: {
+        description: '## Architectural Policy: Zero Tailwind CSS\n\nStrict requirement to maintain **100% custom CSS** with CSS custom properties (design tokens) and scoped component styles. **No utility classes or Tailwind runtime**.'
+      }
+    },
     { id: 'm1', name: 'Memory: Stateless Agent Coordination', type: 'memory' }
   ],
   relations: [

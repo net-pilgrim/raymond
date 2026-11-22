@@ -142,7 +142,6 @@
         {graphData}
         onSelectEntity={handleSelectEntity}
         onOpenConnectModal={openConnectModal}
-        onDeleteRelation={handleDeleteRelation}
       />
     {/if}
   </main>

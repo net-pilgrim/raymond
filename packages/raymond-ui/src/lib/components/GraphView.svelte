@@ -11,7 +11,6 @@
   export let graphData: KnowledgeGraphData;
   export let onSelectEntity: (entity: any) => void;
   export let onOpenConnectModal: (sourceEntityId?: string) => void = () => {};
-  export let onDeleteRelation: (relationId: string) => void = () => {};
 
   export function focusNeighborhood(entityId: string) {
     focusCenterEntityId = entityId;
@@ -122,11 +121,15 @@
           name: label,
           type: 'memory',
           aliases: m.tags || [],
+          content: m.content,
+          agent_id: m.agent_id || m.author_agent,
+          author_agent: m.agent_id || m.author_agent,
           metadata: {
             ...m,
             memory_id: m.id,
             category: m.category,
-            author_agent: m.author_agent,
+            agent_id: m.agent_id || m.author_agent,
+            author_agent: m.agent_id || m.author_agent,
             created_at: m.created_at,
             full_content: m.content,
             is_unlinked_memory: true
@@ -359,15 +362,7 @@
         const edgeId = params.edges[0];
         const rel = (graphData?.relations || []).find(r => r.id === edgeId);
         if (rel) {
-          const srcName = getNodeDisplayName(rel.src || (rel as any).source_id);
-          const dstName = getNodeDisplayName(rel.dst || (rel as any).target_id);
-          triggerToast(`Relation: <b>${srcName}</b> ➔ <code>${rel.predicate}</code> ➔ <b>${dstName}</b>`, 'info', {
-            label: 'Delete',
-            onClick: () => {
-              onDeleteRelation(rel.id);
-              triggerToast('Relation deleted', 'info');
-            }
-          });
+          onSelectEntity(rel);
         }
       }
     });
