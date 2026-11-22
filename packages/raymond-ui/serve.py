@@ -24,6 +24,7 @@ import urllib.parse
 import urllib.request
 
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+SERVE_DIR = os.path.join(DIRECTORY, "dist") if os.path.exists(os.path.join(DIRECTORY, "dist", "index.html")) else DIRECTORY
 
 def discover_credentials(cli_url=None, cli_key=None):
     """
@@ -177,7 +178,7 @@ class KnowledgeGraphProxyHandler(http.server.SimpleHTTPRequestHandler):
     cached_graph = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=DIRECTORY, **kwargs)
+        super().__init__(*args, directory=SERVE_DIR, **kwargs)
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -383,7 +384,7 @@ def main():
     KnowledgeGraphProxyHandler.supabase_key = key
     KnowledgeGraphProxyHandler.auth_source = source
 
-    os.chdir(DIRECTORY)
+    os.chdir(SERVE_DIR)
     with ReusableTCPServer(("", args.port), KnowledgeGraphProxyHandler) as httpd:
         print("=" * 65)
         print("🕸️  Raymond Knowledge Graph Viewer & Proxy")

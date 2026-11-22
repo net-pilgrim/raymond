@@ -19,6 +19,8 @@ __pycache__/
 
 # Node
 node_modules/
+dist/
+**/dist/
 
 # IDE & OS Files
 .DS_Store

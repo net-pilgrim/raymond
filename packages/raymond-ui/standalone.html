@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Raymond — Knowledge Graph Visualizer & Explorer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕸️</text></svg>">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            },
+            dark: {
+              950: '#090d16',
+              900: '#0f172a',
+              850: '#131d35',
+              800: '#1e293b',
+              700: '#334155',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Vis Network CDN -->
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Marked.js Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 10%, #172554 0%, #090d16 60%, #030712 100%) !important;
+    }
+
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Markdown prose styles in inspector */
+    .prose-dark {
+      color: #cbd5e1;
+      font-size: 0.775rem;
+      line-height: 1.45rem;
+      word-break: break-word;
+    }
+    .prose-dark p {
+      margin-bottom: 0.6rem;
+    }
+    .prose-dark p:last-child {
+      margin-bottom: 0;
+    }
+    .prose-dark h1, .prose-dark h2, .prose-dark h3, .prose-dark h4 {
+      color: #f8fafc;
+      font-weight: 700;
+      margin-top: 0.9rem;
+      margin-bottom: 0.35rem;
+    }
+    .prose-dark h1 { font-size: 0.95rem; }
+    .prose-dark h2 { font-size: 0.875rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.2rem; }
+    .prose-dark h3 { font-size: 0.8rem; color: #38bdf8; }
+    .prose-dark ul, .prose-dark ol {
+      margin-left: 1.25rem;
+      margin-bottom: 0.6rem;
+    }
+    .prose-dark ul { list-style-type: disc; }
+    .prose-dark ol { list-style-type: decimal; }
+    .prose-dark li {
+      margin-bottom: 0.25rem;
+    }
+    .prose-dark code {
+      background-color: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #38bdf8;
+      padding: 0.15rem 0.35rem;
+      border-radius: 0.25rem;
+      font-size: 0.725rem;
+    }
+    .prose-dark pre {
+      background-color: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.6rem;
+      margin: 0.5rem 0;
+      overflow-x: auto;
+    }
+    .prose-dark pre code {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      color: #a5f3fc;
+    }
+    .prose-dark blockquote {
+      border-left: 3px solid #10b981;
+      padding-left: 0.6rem;
+      color: #94a3b8;
+      font-style: italic;
+      margin: 0.5rem 0;
+    }
+    .prose-dark a {
+      color: #34d399;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .prose-dark hr {
+      border: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      margin: 0.75rem 0;
+    }
+    /* Vis network navigation overrides for sleek dark look */
+    .vis-network div.vis-navigation div.vis-button {
+      background-color: rgba(30, 41, 59, 0.8) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+      backdrop-filter: blur(8px);
+    }
+    .vis-network div.vis-navigation div.vis-button:hover {
+      background-color: rgba(51, 65, 85, 0.9) !important;
+      border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+  </style>
+</head>
+<body class="text-slate-100 h-screen w-screen flex flex-col overflow-hidden antialiased select-none relative">
+
+  <!-- ================= TOP NAVIGATION / HEADER ================= -->
+  <header class="h-14 border-b border-white/10 bg-dark-900/80 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0 shadow-lg">
+    <!-- Left: Brand & Status -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-base shadow-lg"
+             style="background: linear-gradient(135deg, #a855f7, #ec4899); box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); border: 1px solid rgba(255, 255, 255, 0.2);">
+          🕸️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-tight text-white text-base">Raymond</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800/60 font-semibold tracking-wide">Knowledge Graph</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-5 w-px bg-white/10 mx-1"></div>
+
+      <!-- Live Connection Status Badge -->
+      <button id="btnConnectionStatus" onclick="openSettingsModal()" class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition text-xs text-slate-300">
+        <span id="statusIndicator" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <span id="statusText">Not Connected</span>
+      </button>
+
+      <!-- Refresh Button -->
+      <button id="btnSync" onclick="refreshData()" title="Reload from source" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Center: Search Bar & Auto-Focus -->
+    <div class="relative w-80 max-w-sm">
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Search entities, types, aliases..." 
+          class="w-full pl-9 pr-8 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition shadow-inner"
+          oninput="handleSearch(this.value)"
+        >
+        <button id="btnClearSearch" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
+          ✕
+        </button>
+      </div>
+      <!-- Autocomplete Dropdown -->
+      <div id="searchDropdown" class="hidden absolute top-full mt-1.5 left-0 right-0 max-h-60 overflow-y-auto bg-dark-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 py-1"></div>
+    </div>
+
+    <!-- Right: Stats & Action Tools -->
+    <div class="flex items-center gap-2">
+      <!-- Counters Pill -->
+      <div class="hidden md:flex items-center gap-3 px-3 py-1 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-400 font-mono">
+        <div><span id="statEntities" class="text-purple-400 font-bold">0</span> entities</div>
+        <div class="w-1 h-1 rounded-full bg-slate-600"></div>
+        <div><span id="statRelations" class="text-sky-400 font-bold">0</span> relations</div>
+        <div class="w-1 h-1 rounded-full bg-slate-600"></div>
+        <div><span id="statMemories" class="text-pink-400 font-bold">0</span> memories</div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-1 border-l border-white/10 pl-2">
+        <button onclick="fitGraph()" title="Fit View to All Nodes" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="maximize" class="w-4 h-4"></i>
+        </button>
+        <button id="btnPhysicsToggle" onclick="togglePhysics()" title="Toggle Physics Simulation" class="p-1.5 rounded-lg hover:bg-white/10 text-emerald-400 hover:text-emerald-300 transition border border-transparent hover:border-white/10">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+        </button>
+        <button id="btnLayoutToggle" onclick="toggleLayoutMode()" title="Toggle Hierarchical / Force Layout" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="git-fork" class="w-4 h-4"></i>
+        </button>
+        <button onclick="exportPNG()" title="Export PNG Screenshot" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="camera" class="w-4 h-4"></i>
+        </button>
+        <button onclick="triggerJsonImport()" title="Import Graph JSON (Offline / Zero-Runtime)" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+        </button>
+        <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" onchange="handleFileImport(event)">
+        <button onclick="openSettingsModal()" title="Supabase API Settings" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition border border-transparent hover:border-white/10">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE AREA ================= -->
+  <!-- Floating Filter Controls Bar (Left Top) -->
+  <div class="absolute top-16 left-3 z-10 flex flex-col gap-2 max-w-sm pointer-events-none">
+    <!-- Entity Type Filter Chips -->
+    <div class="pointer-events-auto bg-dark-900/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 shadow-2xl">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="filter" class="w-3 h-3 text-purple-400"></i> Entity Types
+        </span>
+        <button onclick="resetFilters()" class="text-[10px] text-purple-400 hover:underline font-semibold">Reset</button>
+      </div>
+      <div id="typeFilterPills" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1"></div>
+    </div>
+
+    <!-- Display Options -->
+    <div class="pointer-events-auto bg-dark-900/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 shadow-2xl flex items-center justify-between text-xs">
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" id="chkShowSuperseded" onchange="toggleSuperseded(this.checked)" class="rounded bg-dark-800 border-slate-700 text-purple-500 focus:ring-0">
+        <span class="text-slate-300 font-medium">Show Superseded Links</span>
+      </label>
+      <span id="supersededCountPill" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-900/60">0</span>
+    </div>
+
+    <!-- Hop Focus Mode Pill -->
+    <div id="focusModeBox" class="hidden pointer-events-auto bg-dark-900/85 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 shadow-2xl flex items-center justify-between text-xs">
+      <div class="flex items-center gap-1.5 text-slate-300">
+        <i data-lucide="crosshair" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Neighborhood Focus:</span>
+        <span id="focusEntityName" class="font-bold text-white truncate max-w-[100px]">Node</span>
+      </div>
+      <button onclick="clearFocusMode()" class="text-xs text-red-400 hover:text-red-300 font-medium ml-2">Exit</button>
+    </div>
+  </div>
+
+  <!-- Graph Canvas Container -->
+  <div id="graphContainer" class="flex-1 w-full h-full"></div>
+
+  <!-- Floating Drag-to-Connect Indicator Pill -->
+  <div id="dropConnectPill" class="hidden fixed z-50 pointer-events-none bg-emerald-600/95 text-white font-semibold text-xs px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md border border-emerald-400 flex items-center gap-1.5 transition-opacity">
+    <i data-lucide="link-2" class="w-3.5 h-3.5 text-emerald-200"></i>
+    <span id="dropConnectPillText">Drop to connect</span>
+  </div>
+
+  <!-- Floating Action Toast Container -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-y-0 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
+  <!-- ================= RIGHT SLIDE-OVER INSPECTOR DRAWER ================= -->
+  <aside id="inspectorDrawer" class="fixed top-14 right-0 bottom-0 w-96 max-w-full border-l border-white/10 bg-dark-900/90 backdrop-blur-xl flex flex-col z-20 transition-transform duration-300 ease-in-out translate-x-full shadow-2xl">
+    <!-- Drawer Header -->
+    <div class="h-14 border-b border-white/10 px-4 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <i id="inspectorIcon" data-lucide="circle-dot" class="w-4 h-4 text-purple-400 shrink-0"></i>
+        <h2 id="inspectorTitle" class="text-sm font-bold text-white truncate">Inspector</h2>
+      </div>
+      <div class="flex items-center gap-1">
+        <button id="btnToggleDrawerWidth" onclick="toggleDrawerWidth()" title="Toggle Wide View" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+          <i id="iconDrawerWidth" data-lucide="maximize-2" class="w-4 h-4"></i>
+        </button>
+        <button onclick="closeInspector()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Drawer Scrollable Content -->
+    <div id="inspectorContent" class="flex-1 overflow-y-auto p-4 space-y-5 text-xs text-slate-300">
+      <!-- Content will be rendered dynamically -->
+    </div>
+  </aside>
+
+  <!-- ================= SETTINGS & SUPABASE CREDENTIALS MODAL ================= -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-dark-900/95 border border-white/15 rounded-2xl shadow-2xl overflow-hidden flex flex-col backdrop-blur-2xl">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+            <i data-lucide="database" class="w-4 h-4"></i>
+          </div>
+          <h3 class="font-bold text-white text-sm">Supabase Connection Settings</h3>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 text-xs">
+        <p class="text-slate-400 leading-relaxed">
+          Connect directly to your Supabase PostgreSQL tables (<code class="text-purple-400 font-mono">public.entities</code>, <code class="text-purple-400 font-mono">public.relations</code>, <code class="text-purple-400 font-mono">public.memories</code>).
+        </p>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Supabase URL</label>
+          <input 
+            type="url" 
+            id="cfgSupabaseUrl" 
+            placeholder="https://xyzcompany.supabase.co" 
+            class="w-full px-3 py-2 bg-dark-800/80 border border-white/10 rounded-xl text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          >
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Supabase API Key (Anon or Service Role)</label>
+          <input 
+            type="password" 
+            id="cfgSupabaseKey" 
+            placeholder="eyJh..." 
+            class="w-full px-3 py-2 bg-dark-800/80 border border-white/10 rounded-xl text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          >
+          <span class="text-[10px] text-slate-500 mt-1 block">Saved in browser's local storage only. Never sent to any 3rd party.</span>
+        </div>
+
+        <div id="modalStatusAlert" class="hidden p-3 rounded-lg border text-xs"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-white/10 bg-dark-950 flex items-center justify-end gap-2">
+        <button onclick="closeSettingsModal()" class="px-3 py-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition text-xs">
+          Cancel
+        </button>
+        <button onclick="saveAndConnectSupabase()" class="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shadow-lg shadow-purple-900/40 transition text-xs flex items-center gap-1.5">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i> Connect & Sync
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+  <script>
+    // --- STATE MANAGEMENT ---
+    let network = null;
+    let rawEntities = [];
+    let rawRelations = [];
+    let rawMemories = [];
+    let rawMemoryEntities = [];
+    
+    let isPhysicsActive = true;
+    let isHierarchical = false;
+    let activeTypeFilters = new Set();
+    let showSuperseded = false;
+    let selectedEntityId = null;
+    let focusCenterEntityId = null;
+    let focusHopDepth = 0; // 0 = all nodes
+
+    // Visual Palette by Entity Type
+    const TYPE_STYLES = {
+      concept: { bg: '#8B5CF6', border: '#A78BFA', highlight: '#C4B5FD', badge: 'bg-purple-950/80 text-purple-300 border-purple-800/80' },
+      component: { bg: '#0284C7', border: '#38BDF8', highlight: '#7DD3FC', badge: 'bg-sky-950/80 text-sky-300 border-sky-800/80' },
+      technology: { bg: '#059669', border: '#34D399', highlight: '#6EE7B7', badge: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80' },
+      decision: { bg: '#D97706', border: '#FBBF24', highlight: '#FDE68A', badge: 'bg-amber-950/80 text-amber-300 border-amber-800/80' },
+      agent: { bg: '#E11D48', border: '#FB7185', highlight: '#FDA4AF', badge: 'bg-rose-950/80 text-rose-300 border-rose-800/80' },
+      system: { bg: '#4F46E5', border: '#818CF8', highlight: '#A5B4FC', badge: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/80' },
+      tool: { bg: '#0D9488', border: '#2DD4BF', highlight: '#5EEAD4', badge: 'bg-teal-950/80 text-teal-300 border-teal-800/80' },
+      algorithm: { bg: '#EC4899', border: '#F472B6', highlight: '#FBCFE8', badge: 'bg-pink-950/80 text-pink-300 border-pink-800/80' },
+      protocol: { bg: '#06B6D4', border: '#67E8F9', highlight: '#CFFAFE', badge: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/80' },
+      wayland_interface: { bg: '#0891B2', border: '#22D3EE', highlight: '#A5F3FC', badge: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/80' },
+      library: { bg: '#3B82F6', border: '#60A5FA', highlight: '#BFDBFE', badge: 'bg-blue-950/80 text-blue-300 border-blue-800/80' },
+      project: { bg: '#6366F1', border: '#818CF8', highlight: '#C7D2FE', badge: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/80' },
+      reference_project: { bg: '#64748B', border: '#94A3B8', highlight: '#CBD5E1', badge: 'bg-slate-800 text-slate-300 border-slate-700' },
+      memory: { bg: '#64748B', border: '#94A3B8', highlight: '#CBD5E1', badge: 'bg-slate-800 text-slate-300 border-slate-600' },
+      unlinked_memory: { bg: '#64748B', border: '#94A3B8', highlight: '#CBD5E1', badge: 'bg-slate-800 text-slate-300 border-slate-600' },
+      default: { bg: '#475569', border: '#94A3B8', highlight: '#CBD5E1', badge: 'bg-slate-800 text-slate-300 border-slate-700' }
+    };
+
+    function getTypeStyle(type) {
+      const key = (type || 'concept').toLowerCase();
+      if (TYPE_STYLES[key]) return TYPE_STYLES[key];
+      // Deterministic vibrant HSL palette fallback for any dynamic/unknown entity type
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+      const h = Math.abs(hash) % 360;
+      return {
+        bg: `hsl(${h}, 65%, 48%)`,
+        border: `hsl(${h}, 75%, 68%)`,
+        highlight: `hsl(${h}, 85%, 82%)`,
+        badge: 'bg-white/10 text-white border-white/20'
+      };
+    }
+
+    // --- BUILT-IN DEMO DATASET (EMPTY - NO DATA LOADED WITHOUT AUTHENTICATION) ---
+    const DEMO_DATASET = {
+      entities: [],
+      relations: [],
+      memories: [],
+      memory_entities: []
+    };
+
+    // --- INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initNetwork();
+      loadStoredCredentials();
+      autoConnectOrDemo();
+    });
+
+    // --- DEFAULT PROJECT SUPABASE CREDENTIALS ---
+    const DEFAULT_SUPABASE_URL = "https://zmocedvkqrcxwkthmwql.supabase.co";
+    const DEFAULT_SUPABASE_KEY = "sb_publishable_Mtm9durpa0BqJilrDDP3Sw_emjdGVfY";
+
+    function loadStoredCredentials() {
+      const queryParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
+      let urlParam = hashParams.get('supabaseUrl') || hashParams.get('url') || queryParams.get('supabaseUrl') || queryParams.get('url') || '';
+      let keyParam = hashParams.get('supabaseKey') || hashParams.get('key') || hashParams.get('apikey') || queryParams.get('supabaseKey') || queryParams.get('key') || queryParams.get('apikey') || '';
+
+      // Also support semicolon separator or unescaped fragments: #url=...;key=...
+      if (!urlParam && window.location.hash) {
+        const hashStr = window.location.hash.replace(/^#/, '');
+        const matchUrl = hashStr.match(/url=([^;&]+)/);
+        const matchKey = hashStr.match(/key=([^;&]+)/);
+        if (matchUrl) urlParam = decodeURIComponent(matchUrl[1]);
+        if (matchKey) keyParam = decodeURIComponent(matchKey[1]);
+      }
+
+      // Strip any accidental shell caret (^), trailing slashes, or whitespace
+      urlParam = urlParam.replace(/[\s\^/]+$/, '').replace(/^[\s\^]+/, '').trim();
+      keyParam = keyParam.replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
+
+      let savedUrl = urlParam || (localStorage.getItem('raymond_supabase_url') || '').replace(/[\s\^/]+$/, '').trim() || (window.__DEFAULT_SUPABASE_URL__ || DEFAULT_SUPABASE_URL);
+      let savedKey = keyParam || (localStorage.getItem('raymond_supabase_key') || '').replace(/[\s\^]+$/, '').trim() || (window.__DEFAULT_SUPABASE_KEY__ || DEFAULT_SUPABASE_KEY);
+
+      if (!savedUrl || savedUrl === 'supabase.co' || savedUrl === 'https://supabase.co' || savedUrl === 'http://supabase.co' || savedUrl.includes('xyzcompany')) {
+        savedUrl = DEFAULT_SUPABASE_URL;
+      }
+      if (!savedKey || savedKey === 'undefined' || savedKey === 'null' || savedKey.length < 20 || savedKey.includes('xyz')) {
+        savedKey = DEFAULT_SUPABASE_KEY;
+      }
+
+      document.getElementById('cfgSupabaseUrl').value = savedUrl;
+      document.getElementById('cfgSupabaseKey').value = savedKey;
+
+      if (savedUrl && savedKey) {
+        try {
+          localStorage.setItem('raymond_supabase_url', savedUrl);
+          localStorage.setItem('raymond_supabase_key', savedKey);
+        } catch (_) {}
+      }
+
+      // Clean address bar so credentials are saved in localStorage but not left in browser history
+      if (urlParam || keyParam) {
+        try {
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (_) {}
+      }
+    }
+
+    async function autoConnectOrDemo() {
+      // 1. Check local proxy tool (/api/graph) only if not running from file://
+      if (window.location.protocol !== 'file:') {
+        try {
+          const proxyRes = await fetch('/api/graph');
+          if (proxyRes.ok) {
+            const graphJson = await proxyRes.json();
+            if (graphJson && graphJson.entities) {
+              applyGraphJson(graphJson, 'Live Edge Proxy');
+              return;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Try configured or default credentials
+      let url = document.getElementById('cfgSupabaseUrl').value.trim() || DEFAULT_SUPABASE_URL;
+      let key = document.getElementById('cfgSupabaseKey').value.trim() || DEFAULT_SUPABASE_KEY;
+
+      if (url === 'supabase.co' || url === 'https://supabase.co' || url === 'http://supabase.co' || url.includes('xyzcompany')) {
+        url = DEFAULT_SUPABASE_URL;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      }
+      if (!key || key === 'undefined' || key === 'null' || key.length < 20 || key.includes('xyz')) {
+        key = DEFAULT_SUPABASE_KEY;
+        document.getElementById('cfgSupabaseKey').value = key;
+      }
+
+      if (url && key) {
+        try {
+          await fetchFromSupabase(url, key);
+          return;
+        } catch (e) {
+          console.warn("Auto-connect with saved credentials failed:", e);
+          if (url !== DEFAULT_SUPABASE_URL || key !== DEFAULT_SUPABASE_KEY) {
+            try {
+              console.log("Retrying with default project credentials...");
+              document.getElementById('cfgSupabaseUrl').value = DEFAULT_SUPABASE_URL;
+              document.getElementById('cfgSupabaseKey').value = DEFAULT_SUPABASE_KEY;
+              await fetchFromSupabase(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_KEY);
+              return;
+            } catch (err2) {
+              console.error("Default connection retry failed:", err2);
+            }
+          }
+        }
+      }
+
+      // 3. Fallback if network offline
+      updateStatusBadge('disconnected', 'Not Connected');
+      renderGraph();
+    }
+
+    // --- PURE CLIENT OFFLINE IMPORT & DRAG-AND-DROP ---
+    function triggerJsonImport() {
+      document.getElementById('jsonFileInput').click();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      loadGraphFromFile(file);
+      e.target.value = '';
+    }
+
+    function loadGraphFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (data && (data.entities || data.nodes)) {
+            applyGraphJson(data, `File: ${file.name}`);
+            showToast(`Loaded graph from <b>${escapeHtml(file.name)}</b>`, 'success');
+          } else {
+            alert("Invalid Graph JSON structure. Expected JSON with an 'entities' array.");
+          }
+        } catch (err) {
+          alert("Error parsing JSON file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.name.toLowerCase().endsWith('.json')) {
+          loadGraphFromFile(file);
+        }
+      }
+    });
+
+    function applyGraphJson(graphJson, sourceLabel = 'Live Proxy') {
+      rawEntities = graphJson.entities || [];
+      rawRelations = graphJson.relations || [];
+      rawMemories = graphJson.memories || [];
+      rawMemoryEntities = graphJson.memory_entities || [];
+
+      updateStatusBadge('connected', sourceLabel);
+      closeSettingsModal();
+      renderGraph();
+      setTimeout(fitGraph, 300);
+    }
+
+    // --- VIS NETWORK SETUP ---
+    function initNetwork() {
+      const container = document.getElementById('graphContainer');
+      const data = { nodes: new vis.DataSet([]), edges: new vis.DataSet([]) };
+
+      const options = {
+        nodes: {
+          shape: 'dot',
+          size: 18,
+          font: {
+            size: 13,
+            color: '#F8FAFC',
+            face: 'Plus Jakarta Sans, sans-serif',
+            strokeWidth: 3,
+            strokeColor: '#090d16'
+          },
+          borderWidth: 2,
+          shadow: {
+            enabled: true,
+            color: 'rgba(0, 0, 0, 0.7)',
+            size: 12,
+            x: 0,
+            y: 2
+          }
+        },
+        edges: {
+          arrows: {
+            to: { enabled: true, scaleFactor: 0.8 }
+          },
+          font: {
+            size: 10,
+            color: '#94A3B8',
+            face: 'JetBrains Mono, monospace',
+            strokeWidth: 3,
+            strokeColor: '#090d16',
+            align: 'middle'
+          },
+          color: {
+            color: 'rgba(255, 255, 255, 0.25)',
+            highlight: '#38BDF8',
+            hover: '#64748B'
+          },
+          smooth: {
+            enabled: true,
+            type: 'cubicBezier',
+            roundness: 0.2
+          }
+        },
+        physics: {
+          enabled: isPhysicsActive,
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: {
+            gravitationalConstant: -70,
+            centralGravity: 0.01,
+            springLength: 130,
+            springConstant: 0.08,
+            damping: 0.7,
+            avoidOverlap: 0.8
+          },
+          stabilization: {
+            iterations: 140,
+            updateInterval: 25
+          }
+        },
+        interaction: {
+          hover: true,
+          tooltipDelay: 120,
+          hideEdgesOnDrag: false,
+          multiselect: false,
+          navigationButtons: true,
+          keyboard: false
+        }
+      };
+
+      network = new vis.Network(container, data, options);
+
+      network.on('click', onGraphClick);
+      network.on('doubleClick', onGraphDoubleClick);
+      network.on('hoverNode', () => { container.style.cursor = 'pointer'; });
+      network.on('blurNode', () => { container.style.cursor = 'default'; });
+
+      // Drag-to-Connect Interaction: Drag node onto another to create 'connected_to'
+      let draggedNodeId = null;
+      let hoverTargetNodeId = null;
+
+      network.on('dragStart', (params) => {
+        if (params.nodes && params.nodes.length > 0) {
+          draggedNodeId = params.nodes[0];
+          // Freeze layout physics while dragging so nodes don't chase or repel each other
+          network.setOptions({ physics: { enabled: false } });
+        } else {
+          draggedNodeId = null;
+        }
+        hoverTargetNodeId = null;
+      });
+
+      network.on('dragging', (params) => {
+        if (!draggedNodeId) return;
+
+        const pointerCanvas = params.pointer.canvas;
+        const allPositions = network.getPositions();
+        let closestId = null;
+        let minDist = Infinity;
+
+        for (const [id, pos] of Object.entries(allPositions)) {
+          if (id === draggedNodeId) continue;
+          const d = Math.hypot(pos.x - pointerCanvas.x, pos.y - pointerCanvas.y);
+          if (d < minDist) {
+            minDist = d;
+            closestId = id;
+          }
+        }
+
+        const pill = document.getElementById('dropConnectPill');
+        const pillText = document.getElementById('dropConnectPillText');
+        if (closestId && minDist <= 55) {
+          hoverTargetNodeId = closestId;
+          const targetName = getNodeDisplayName(closestId);
+          pillText.innerHTML = `Drop on <b>${escapeHtml(targetName)}</b> to create <code class="font-mono bg-emerald-950/80 px-1 py-0.5 rounded text-emerald-200">connected_to</code>`;
+          pill.style.left = `${params.pointer.DOM.x + 18}px`;
+          pill.style.top = `${params.pointer.DOM.y - 14}px`;
+          pill.classList.remove('hidden');
+          container.style.cursor = 'copy';
+        } else {
+          hoverTargetNodeId = null;
+          pill.classList.add('hidden');
+          container.style.cursor = 'pointer';
+        }
+      });
+
+      network.on('dragEnd', (params) => {
+        const pill = document.getElementById('dropConnectPill');
+        pill.classList.add('hidden');
+        container.style.cursor = 'default';
+
+        const srcId = draggedNodeId;
+        let dstId = hoverTargetNodeId;
+
+        // Fallback distance check at drop position
+        if (srcId && !dstId && params.pointer && params.pointer.canvas) {
+          const pointerCanvas = params.pointer.canvas;
+          const allPositions = network.getPositions();
+          let closestId = null;
+          let minDist = Infinity;
+          for (const [id, pos] of Object.entries(allPositions)) {
+            if (id === srcId) continue;
+            const d = Math.hypot(pos.x - pointerCanvas.x, pos.y - pointerCanvas.y);
+            if (d < minDist) {
+              minDist = d;
+              closestId = id;
+            }
+          }
+          if (closestId && minDist <= 55) {
+            dstId = closestId;
+          }
+        }
+
+        draggedNodeId = null;
+        hoverTargetNodeId = null;
+
+        if (srcId && dstId && srcId !== dstId) {
+          handleDropConnect(srcId, dstId);
+        }
+
+        // Restore physics if user had physics active
+        if (isPhysicsActive) {
+          network.setOptions({ physics: { enabled: true } });
+        }
+      });
+    }
+
+    // --- UNLINKED MEMORY EXTRACTION ---
+    function getMemoryLabel(m) {
+      if (m.metadata && (m.metadata.title || m.metadata.name)) {
+        return m.metadata.title || m.metadata.name;
+      }
+      const firstLine = (m.content || '').split('\n').find(l => l.trim().length > 0) || '';
+      const cleaned = firstLine.replace(/^[#*\-\d.\s]+/, '').trim();
+      if (cleaned.length <= 28) return cleaned || `Memory (${m.category || 'general'})`;
+      return cleaned.slice(0, 26) + '…';
+    }
+
+    function getUnlinkedMemoryEntities() {
+      const linkedMemIds = new Set();
+      const existingEntityIds = new Set(rawEntities.map(e => e.id));
+      rawMemoryEntities.forEach(me => {
+        if (me.memory_id && existingEntityIds.has(me.entity_id)) linkedMemIds.add(me.memory_id);
+      });
+      rawRelations.forEach(r => {
+        if (r.memory_id) linkedMemIds.add(r.memory_id);
+      });
+
+      return rawMemories.filter(m => !linkedMemIds.has(m.id)).map(m => ({
+        id: m.id,
+        name: getMemoryLabel(m),
+        type: 'memory',
+        aliases: m.tags || [],
+        metadata: {
+          ...m.metadata,
+          memory_id: m.id,
+          category: m.category,
+          agent_id: m.agent_id,
+          session_id: m.session_id,
+          created_at: m.created_at,
+          full_content: m.content,
+          is_unlinked_memory: true
+        },
+        isMemoryNode: true,
+        rawMemory: m
+      }));
+    }
+
+    // --- DRAG-TO-CONNECT RELATION CREATION ---
+    function getNodeDisplayName(nodeId) {
+      const ent = rawEntities.find(e => e.id === nodeId);
+      if (ent) return ent.name;
+      const unlinked = getUnlinkedMemoryEntities();
+      const mem = unlinked.find(e => e.id === nodeId);
+      if (mem) return mem.name;
+      return nodeId;
+    }
+
+    async function handleDropConnect(srcId, dstId) {
+      // 1. Prevent connecting identical nodes
+      if (srcId === dstId) return;
+
+      // 2. Check if relation already exists with predicate connected_to
+      const existing = rawRelations.find(r => 
+        (!r.valid_to) && 
+        ((r.src === srcId && r.dst === dstId) || (r.src === dstId && r.dst === srcId)) && 
+        r.predicate === 'connected_to'
+      );
+      if (existing) {
+        showToast('Nodes are already linked with "connected_to"', 'info');
+        return;
+      }
+
+      const srcName = getNodeDisplayName(srcId);
+      const dstName = getNodeDisplayName(dstId);
+
+      // 3. Handle promote if either node is an unlinked memory node
+      const unlinked = getUnlinkedMemoryEntities();
+      const srcMem = unlinked.find(e => e.id === srcId);
+      const dstMem = unlinked.find(e => e.id === dstId);
+
+      if (srcMem && !rawEntities.find(e => e.id === srcId)) {
+        await promoteMemoryToEntity(srcMem);
+      }
+      if (dstMem && !rawEntities.find(e => e.id === dstId)) {
+        await promoteMemoryToEntity(dstMem);
+      }
+
+      // 4. Create new relation
+      const relId = 'rel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const newRel = {
+        id: relId,
+        src: srcId,
+        dst: dstId,
+        predicate: 'connected_to',
+        valid_from: new Date().toISOString(),
+        valid_to: null,
+        metadata: {
+          created_via: 'drag_and_drop',
+          created_at: new Date().toISOString()
+        }
+      };
+
+      rawRelations.push(newRel);
+      renderGraph();
+
+      showToast(`Connected <b>${escapeHtml(srcName)}</b> ➔ <code class="font-mono text-sky-400">connected_to</code> ➔ <b>${escapeHtml(dstName)}</b>`, 'success', {
+        label: 'Undo',
+        onClick: () => undoCreateRelation(newRel)
+      });
+
+      // 5. Asynchronously persist to backend (proxy or PostgREST direct)
+      persistRelationToBackend(newRel);
+    }
+
+    async function promoteMemoryToEntity(memNode) {
+      const rawMem = memNode.rawMemory || rawMemories.find(m => m.id === memNode.id);
+      const newEntity = {
+        id: memNode.id,
+        name: memNode.name,
+        type: (rawMem && rawMem.category) || 'concept',
+        aliases: (rawMem && rawMem.tags) || [],
+        metadata: {
+          ...(rawMem ? rawMem.metadata : {}),
+          grounded_memory_id: memNode.id,
+          promoted_via: 'drag_and_drop'
+        }
+      };
+
+      rawEntities.push(newEntity);
+      rawMemoryEntities.push({
+        memory_id: memNode.id,
+        entity_id: memNode.id
+      });
+
+      try {
+        const entityPayload = {
+          id: newEntity.id,
+          name: newEntity.name,
+          type: newEntity.type,
+          aliases: newEntity.aliases,
+          metadata: newEntity.metadata
+        };
+        const memEntPayload = {
+          memory_id: memNode.id,
+          entity_id: memNode.id
+        };
+
+        const res = await fetch('/api/entities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entityPayload)
+        });
+
+        if (res.ok) {
+          await fetch('/api/memory_entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(memEntPayload)
+          });
+        } else {
+          const url = document.getElementById('cfgSupabaseUrl').value.trim();
+          const key = document.getElementById('cfgSupabaseKey').value.trim();
+          if (url && key) {
+            const cleanUrl = url.replace(/\/+$/, '');
+            const headers = {
+              'apikey': key,
+              'Authorization': `Bearer ${key}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            };
+            await fetch(`${cleanUrl}/rest/v1/entities`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(entityPayload)
+            });
+            await fetch(`${cleanUrl}/rest/v1/memory_entities`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(memEntPayload)
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to persist promoted entity:', e);
+      }
+    }
+
+    async function persistRelationToBackend(relObj) {
+      try {
+        const payload = {
+          src: relObj.src,
+          dst: relObj.dst,
+          predicate: relObj.predicate,
+          valid_from: relObj.valid_from,
+          metadata: relObj.metadata
+        };
+
+        const proxyRes = await fetch('/api/relations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (proxyRes.ok) {
+          const resData = await proxyRes.json();
+          if (resData.data && resData.data.id) {
+            relObj.id = resData.data.id;
+          }
+          return;
+        }
+
+        const url = document.getElementById('cfgSupabaseUrl').value.trim();
+        const key = document.getElementById('cfgSupabaseKey').value.trim();
+        if (url && key) {
+          const cleanUrl = url.replace(/\/+$/, '');
+          const headers = {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          };
+          const sbRes = await fetch(`${cleanUrl}/rest/v1/relations`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          if (sbRes.ok) {
+            const data = await sbRes.json();
+            if (data && data[0] && data[0].id) {
+              relObj.id = data[0].id;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to persist relation:', err);
+      }
+    }
+
+    async function undoCreateRelation(relObj) {
+      const idx = rawRelations.findIndex(r => r.id === relObj.id);
+      if (idx !== -1) {
+        rawRelations.splice(idx, 1);
+        renderGraph();
+      }
+
+      showToast('Undid "connected_to" relation', 'info');
+
+      try {
+        const proxyRes = await fetch(`/api/relations?id=${relObj.id}`, { method: 'DELETE' });
+        if (!proxyRes.ok) {
+          const url = document.getElementById('cfgSupabaseUrl').value.trim();
+          const key = document.getElementById('cfgSupabaseKey').value.trim();
+          if (url && key) {
+            const cleanUrl = url.replace(/\/+$/, '');
+            await fetch(`${cleanUrl}/rest/v1/relations?id=eq.${relObj.id}`, {
+              method: 'DELETE',
+              headers: {
+                'apikey': key,
+                'Authorization': `Bearer ${key}`
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Error deleting relation during undo:', e);
+      }
+    }
+
+    function showToast(msg, type = 'info', action = null) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      const isSuccess = type === 'success';
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl border text-xs text-white transition-all transform duration-300 translate-y-4 opacity-0 ${
+        isSuccess ? 'bg-dark-900/95 border-emerald-500/40 shadow-emerald-950/50' : 'bg-dark-900/95 border-sky-500/40 shadow-sky-950/50'
+      }`;
+
+      let actionHtml = '';
+      if (action) {
+        actionHtml = `<button id="toastActionBtn" class="ml-2 font-bold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-300 hover:text-white transition">${escapeHtml(action.label || 'Action')}</button>`;
+      }
+
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i data-lucide="${isSuccess ? 'check-circle-2' : 'info'}" class="w-4 h-4 ${isSuccess ? 'text-emerald-400' : 'text-sky-400'} shrink-0"></i>
+          <span class="leading-snug">${msg}</span>
+        </div>
+        ${actionHtml}
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      if (action) {
+        const btn = toast.querySelector('#toastActionBtn');
+        if (btn) {
+          btn.onclick = () => {
+            action.onClick();
+            toast.remove();
+          };
+        }
+      }
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-4', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-4', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 5500);
+    }
+
+    // --- DATA RENDERING & FILTERING ---
+    function renderGraph() {
+      if (!network) return;
+
+      const unlinkedEntities = getUnlinkedMemoryEntities();
+      const allGraphNodes = [...rawEntities, ...unlinkedEntities];
+
+      // 1. Determine active entity set based on Hop Focus Mode
+      let allowedEntityIds = null;
+      if (focusCenterEntityId) {
+        allowedEntityIds = computeHopNeighborhood(focusCenterEntityId, focusHopDepth || 1);
+        document.getElementById('focusModeBox').classList.remove('hidden');
+        const center = allGraphNodes.find(e => e.id === focusCenterEntityId);
+        document.getElementById('focusEntityName').textContent = center ? center.name : focusCenterEntityId;
+      } else {
+        document.getElementById('focusModeBox').classList.add('hidden');
+      }
+
+      // 2. Filter Entities by active Entity Type filters and Hop Neighborhood
+      const filteredEntities = allGraphNodes.filter(ent => {
+        if (allowedEntityIds && !allowedEntityIds.has(ent.id)) return false;
+        if (activeTypeFilters.size > 0 && !activeTypeFilters.has(ent.type?.toLowerCase())) return false;
+        return true;
+      });
+
+      const visibleEntityIds = new Set(filteredEntities.map(e => e.id));
+
+      // 3. Filter Relations
+      let supersededCount = 0;
+      const filteredRelations = rawRelations.filter(rel => {
+        const isSuperseded = Boolean(rel.valid_to);
+        if (isSuperseded) supersededCount++;
+
+        if (!showSuperseded && isSuperseded) return false;
+        if (!visibleEntityIds.has(rel.src) || !visibleEntityIds.has(rel.dst)) return false;
+        return true;
+      });
+
+      document.getElementById('supersededCountPill').textContent = supersededCount;
+
+      // 4. Compute topology degree for dynamic node sizing (no hardcoded hubs)
+      const degreeMap = new Map();
+      rawRelations.forEach(r => {
+        if (!r.valid_to || showSuperseded) {
+          degreeMap.set(r.src, (degreeMap.get(r.src) || 0) + 1);
+          degreeMap.set(r.dst, (degreeMap.get(r.dst) || 0) + 1);
+        }
+      });
+
+      // 5. Build vis.DataSet items with glow shadows & degree-based sizing
+      const nodeItems = filteredEntities.map(ent => {
+        const style = getTypeStyle(ent.type);
+        const deg = degreeMap.get(ent.id) || 0;
+        const size = ent.isMemoryNode ? 16 : Math.min(30, Math.max(16, 16 + deg * 1.6));
+        const isProminent = !ent.isMemoryNode && deg >= 4;
+        const aliases = (ent.aliases && ent.aliases.length > 0) ? `\nAliases: ${ent.aliases.join(', ')}` : '';
+        const titleText = ent.isMemoryNode
+          ? `[UNLINKED MEMORY: ${(ent.metadata.category || 'general').toUpperCase()}]\nAuthor: ${ent.metadata.agent_id || 'system'}\nCreated: ${formatDate(ent.metadata.created_at)}\nTags: ${(ent.aliases || []).join(', ') || 'none'}\n\n${(ent.metadata.full_content || '').slice(0, 180)}...`
+          : `[${ent.type?.toUpperCase() || 'CONCEPT'}] ${ent.name}${aliases}\nConnections: ${deg}`;
+
+        return {
+          id: ent.id,
+          label: ent.name,
+          shape: 'dot',
+          size: size,
+          font: {
+            size: isProminent ? 14 : (ent.isMemoryNode ? 11 : 12),
+            face: 'Plus Jakarta Sans, sans-serif',
+            strokeWidth: 3,
+            strokeColor: '#090d16',
+            color: ent.isMemoryNode ? '#CBD5E1' : '#ffffff'
+          },
+          title: titleText,
+          color: {
+            background: style.bg,
+            border: style.border,
+            highlight: {
+              background: style.highlight,
+              border: '#FFFFFF'
+            }
+          },
+          shadow: {
+            enabled: true,
+            color: style.bg,
+            size: isProminent ? 22 : 10,
+            x: 0,
+            y: 0
+          }
+        };
+      });
+
+      const edgeItems = filteredRelations.map(rel => {
+        const isSuperseded = Boolean(rel.valid_to);
+        return {
+          id: rel.id,
+          from: rel.src,
+          to: rel.dst,
+          label: rel.predicate,
+          dashes: isSuperseded ? [5, 5] : false,
+          color: {
+            color: isSuperseded ? '#EF4444' : 'rgba(255, 255, 255, 0.3)',
+            highlight: isSuperseded ? '#F87171' : '#38BDF8',
+            opacity: isSuperseded ? 0.45 : 0.95
+          },
+          font: {
+            color: isSuperseded ? '#FCA5A5' : '#94A3B8',
+            face: 'JetBrains Mono, monospace',
+            size: 10,
+            strokeColor: '#090d16',
+            strokeWidth: 3
+          },
+          title: `Predicate: ${rel.predicate}\nFrom: ${rel.valid_from || 'unknown'}${rel.valid_to ? `\nSuperseded: ${rel.valid_to}` : ' (Active)'}`
+        };
+      });
+
+      network.setData({
+        nodes: new vis.DataSet(nodeItems),
+        edges: new vis.DataSet(edgeItems)
+      });
+
+      // Update Header Stats
+      document.getElementById('statEntities').textContent = rawEntities.length;
+      document.getElementById('statRelations').textContent = rawRelations.filter(r => !r.valid_to).length;
+      const memStatElem = document.getElementById('statMemories');
+      if (unlinkedEntities.length > 0) {
+        memStatElem.innerHTML = `${rawMemories.length} <span class="text-slate-400 text-[10px] font-normal">(${unlinkedEntities.length} unlinked)</span>`;
+      } else {
+        memStatElem.textContent = rawMemories.length;
+      }
+
+      renderFilterPills();
+    }
+
+    function computeHopNeighborhood(centerId, maxHops = 1) {
+      const visited = new Set([centerId]);
+      let currentBorder = new Set([centerId]);
+
+      for (let hop = 0; hop < maxHops; hop++) {
+        const nextBorder = new Set();
+        for (const rel of rawRelations) {
+          if (!showSuperseded && rel.valid_to) continue;
+
+          if (currentBorder.has(rel.src) && !visited.has(rel.dst)) {
+            visited.add(rel.dst);
+            nextBorder.add(rel.dst);
+          }
+          if (currentBorder.has(rel.dst) && !visited.has(rel.src)) {
+            visited.add(rel.src);
+            nextBorder.add(rel.src);
+          }
+        }
+        currentBorder = nextBorder;
+        if (currentBorder.size === 0) break;
+      }
+      return visited;
+    }
+
+    function renderFilterPills() {
+      const container = document.getElementById('typeFilterPills');
+      container.innerHTML = '';
+
+      const counts = {};
+      const unlinkedEntities = getUnlinkedMemoryEntities();
+      [...rawEntities, ...unlinkedEntities].forEach(e => {
+        const t = (e.type || 'concept').toLowerCase();
+        counts[t] = (counts[t] || 0) + 1;
+      });
+
+      Object.entries(counts).forEach(([type, count]) => {
+        const style = getTypeStyle(type);
+        const isActive = activeTypeFilters.size === 0 || activeTypeFilters.has(type);
+        
+        const pill = document.createElement('button');
+        pill.className = `px-2 py-0.5 rounded-full text-[10px] font-semibold border transition flex items-center gap-1.5 ${
+          isActive 
+            ? `${style.badge} ring-1 ring-white/20 shadow-sm` 
+            : 'bg-dark-800 text-slate-500 border-slate-700/60 opacity-60'
+        }`;
+        
+        pill.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${style.bg}"></span>
+          <span>${type}</span>
+          <span class="opacity-70 font-mono">(${count})</span>
+        `;
+
+        pill.onclick = () => {
+          if (activeTypeFilters.has(type)) {
+            activeTypeFilters.delete(type);
+          } else {
+            activeTypeFilters.add(type);
+          }
+          renderGraph();
+        };
+
+        container.appendChild(pill);
+      });
+    }
+
+    function resetFilters() {
+      activeTypeFilters.clear();
+      showSuperseded = false;
+      document.getElementById('chkShowSuperseded').checked = false;
+      focusCenterEntityId = null;
+      renderGraph();
+      fitGraph();
+    }
+
+    function toggleSuperseded(checked) {
+      showSuperseded = checked;
+      renderGraph();
+    }
+
+    // --- GRAPH CLICK & SELECTION ---
+    function onGraphClick(params) {
+      if (params.nodes && params.nodes.length > 0) {
+        const nodeId = params.nodes[0];
+        inspectEntity(nodeId);
+      } else if (params.edges && params.edges.length > 0) {
+        const edgeId = params.edges[0];
+        inspectRelation(edgeId);
+      } else {
+        closeInspector();
+      }
+    }
+
+    function onGraphDoubleClick(params) {
+      if (params.nodes && params.nodes.length > 0) {
+        const nodeId = params.nodes[0];
+        focusCenterEntityId = (focusCenterEntityId === nodeId) ? null : nodeId;
+        focusHopDepth = 1;
+        renderGraph();
+        network.focus(nodeId, { scale: 1.2, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+      }
+    }
+
+    function clearFocusMode() {
+      focusCenterEntityId = null;
+      renderGraph();
+      fitGraph();
+    }
+
+    // --- INSPECTOR DRAWER ---
+    function inspectEntity(entityId) {
+      selectedEntityId = entityId;
+      const unlinkedEntities = getUnlinkedMemoryEntities();
+      const entity = [...rawEntities, ...unlinkedEntities].find(e => e.id === entityId);
+      if (!entity) return;
+
+      const style = getTypeStyle(entity.type);
+      const drawer = document.getElementById('inspectorDrawer');
+      const title = document.getElementById('inspectorTitle');
+      const content = document.getElementById('inspectorContent');
+
+      title.textContent = entity.name;
+      drawer.classList.remove('translate-x-full');
+
+      // Check if this is an unlinked memory node
+      if (entity.isMemoryNode && entity.rawMemory) {
+        renderUnlinkedMemoryInspector(entity, content, style);
+        lucide.createIcons();
+        return;
+      }
+
+      // Relations
+      const outRels = rawRelations.filter(r => r.src === entityId);
+      const inRels = rawRelations.filter(r => r.dst === entityId);
+
+      // Grounded Memories
+      const groundedMemIds = new Set(
+        rawMemoryEntities.filter(me => me.entity_id === entityId).map(me => me.memory_id)
+      );
+      outRels.concat(inRels).forEach(r => { if (r.memory_id) groundedMemIds.add(r.memory_id); });
+      const memories = rawMemories.filter(m => groundedMemIds.has(m.id));
+
+      let aliasesHtml = '';
+      if (entity.aliases && entity.aliases.length > 0) {
+        aliasesHtml = `
+          <div class="mt-2 flex flex-wrap gap-1">
+            ${entity.aliases.map(a => `<span class="px-2 py-0.5 rounded-lg bg-white/5 text-slate-300 border border-white/10 font-mono text-[10px]">${escapeHtml(a)}</span>`).join('')}
+          </div>
+        `;
+      }
+
+      let metadataHtml = '';
+      if (entity.metadata && Object.keys(entity.metadata).length > 0) {
+        metadataHtml = `
+          <div class="space-y-1">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Metadata</span>
+            <pre class="p-3 rounded-xl bg-black/40 border border-white/10 font-mono text-[11px] text-slate-300 overflow-x-auto">${escapeHtml(JSON.stringify(entity.metadata, null, 2))}</pre>
+          </div>
+        `;
+      }
+
+      // Outbound Relations List with Modern Directional Cards
+      let outRelsHtml = outRels.length === 0 ? '<div class="text-slate-500 italic text-[11px]">None</div>' : outRels.map(r => {
+        const target = rawEntities.find(e => e.id === r.dst);
+        const isSup = Boolean(r.valid_to);
+        return `
+          <div class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition transform hover:translate-x-1 flex items-center justify-between">
+            <div class="flex items-center gap-2 overflow-hidden">
+              <span class="text-slate-400">➔</span>
+              <span class="font-mono text-[10px] bg-white/10 px-2 py-0.5 rounded text-sky-400 border border-white/10 font-semibold">${escapeHtml(r.predicate)}</span>
+              <button onclick="focusAndInspectNode('${r.dst}')" class="text-white hover:text-purple-300 font-bold truncate underline underline-offset-2">
+                ${escapeHtml(target ? target.name : r.dst)}
+              </button>
+            </div>
+            ${isSup ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-red-950/80 text-red-400 border border-red-800">superseded</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800">active</span>'}
+          </div>
+        `;
+      }).join('');
+
+      // Inbound Relations List
+      let inRelsHtml = inRels.length === 0 ? '<div class="text-slate-500 italic text-[11px]">None</div>' : inRels.map(r => {
+        const source = rawEntities.find(e => e.id === r.src);
+        const isSup = Boolean(r.valid_to);
+        return `
+          <div class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition transform hover:translate-x-1 flex items-center justify-between">
+            <div class="flex items-center gap-2 overflow-hidden">
+              <span class="text-slate-400">🠔</span>
+              <button onclick="focusAndInspectNode('${r.src}')" class="text-white hover:text-purple-300 font-bold truncate underline underline-offset-2">
+                ${escapeHtml(source ? source.name : r.src)}
+              </button>
+              <span class="font-mono text-[10px] bg-white/10 px-2 py-0.5 rounded text-emerald-400 border border-white/10 font-semibold">${escapeHtml(r.predicate)}</span>
+            </div>
+            ${isSup ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-red-950/80 text-red-400 border border-red-800">superseded</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800">active</span>'}
+          </div>
+        `;
+      }).join('');
+
+      // Grounded Memories HTML
+      let memoriesHtml = memories.length === 0 ? '<div class="text-slate-500 italic text-[11px]">No grounded memories</div>' : memories.map(m => `
+        <div class="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded-full text-[10px] bg-purple-950 text-purple-300 border border-purple-800 font-semibold uppercase tracking-wider">${escapeHtml(m.category || 'general')}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${formatDate(m.created_at)}</span>
+          </div>
+          <div class="prose-dark">
+            ${renderMarkdown(m.content)}
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-white/10 text-[10px] text-slate-400">
+            <span class="font-mono text-purple-300 font-semibold">👤 ${escapeHtml(m.agent_id || 'system')}</span>
+            <div class="flex gap-1 flex-wrap">
+              ${(m.tags || []).map(t => `<span class="text-slate-400 font-mono bg-white/5 px-1.5 py-0.5 rounded">#${escapeHtml(t)}</span>`).join(' ')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const entityDesc = entity.metadata?.description || entity.metadata?.summary || entity.metadata?.notes;
+      const descHtml = entityDesc ? `
+        <div class="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Description</span>
+          <div class="prose-dark">
+            ${renderMarkdown(entityDesc)}
+          </div>
+        </div>
+      ` : '';
+
+      content.innerHTML = `
+        <!-- Entity Badge & Aliases -->
+        <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entity Type</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${style.badge}">
+              ${escapeHtml(entity.type || 'concept')}
+            </span>
+          </div>
+          ${aliasesHtml}
+          <div class="mt-3 pt-2.5 border-t border-white/10 flex justify-between text-[11px] text-slate-300">
+            <div>Degree: <span class="text-white font-mono font-bold">${outRels.length + inRels.length}</span></div>
+            <div>Grounded Memories: <span class="text-purple-400 font-mono font-bold">${memories.length}</span></div>
+          </div>
+        </div>
+
+        ${descHtml}
+
+        <!-- Quick Neighborhood Action -->
+        <div class="flex gap-2">
+          <button onclick="isolateEntityNeighborhood('${entity.id}')" class="flex-1 py-2 px-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl text-purple-300 hover:text-white font-semibold transition text-center flex items-center justify-center gap-1.5 shadow-sm">
+            <i data-lucide="crosshair" class="w-3.5 h-3.5 text-purple-400"></i> Isolate 1-Hop Neighborhood
+          </button>
+        </div>
+
+        ${metadataHtml}
+
+        <!-- Outgoing Relations -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>Outgoing Relations</span>
+            <span class="text-slate-500 font-mono">(${outRels.length})</span>
+          </span>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            ${outRelsHtml}
+          </div>
+        </div>
+
+        <!-- Incoming Relations -->
+        <div class="space-y-2">
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>Incoming Relations</span>
+            <span class="text-slate-500 font-mono">(${inRels.length})</span>
+          </span>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            ${inRelsHtml}
+          </div>
+        </div>
+
+        <!-- Grounded Memories -->
+        <div class="space-y-2 pt-2 border-t border-white/10">
+          <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>Grounded Memories</span>
+            <span class="text-purple-400 font-mono font-bold">(${memories.length})</span>
+          </span>
+          <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+            ${memoriesHtml}
+          </div>
+        </div>
+      `;
+
+      lucide.createIcons();
+    }
+
+    function renderUnlinkedMemoryInspector(entity, content, style) {
+      const m = entity.rawMemory;
+      content.innerHTML = `
+        <!-- Unlinked Memory Status Card -->
+        <div class="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Node Type</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${style.badge}">
+              Gray Node • Unlinked Memory
+            </span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 text-amber-300 text-xs flex items-start gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+            <div>
+              <div class="font-semibold text-[11px]">Memory Not Included in Graph</div>
+              <div class="text-[10px] text-amber-400/80 mt-0.5">This memory is stored in the database but not yet grounded to any Knowledge Graph entities or relations.</div>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-700/60 flex justify-between text-[11px] text-slate-300">
+            <div>Category: <span class="text-white font-mono font-bold capitalize">${escapeHtml(m.category || 'general')}</span></div>
+            <div>Author: <span class="text-emerald-400 font-mono font-bold">${escapeHtml(m.agent_id || 'system')}</span></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-slate-300">
+            <div>Created: <span class="text-slate-400 font-mono">${formatDate(m.created_at)}</span></div>
+            <div>Session: <span class="text-slate-400 font-mono truncate max-w-[120px]">${escapeHtml(m.session_id || 'n/a')}</span></div>
+          </div>
+          ${m.tags && m.tags.length > 0 ? `
+            <div class="pt-2 border-t border-slate-700/60 flex flex-wrap gap-1">
+              ${m.tags.map(t => `<span class="px-2 py-0.5 rounded-lg bg-white/5 text-slate-300 border border-white/10 font-mono text-[10px]">#${escapeHtml(t)}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Full Memory Content -->
+        <div class="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-2 shadow-sm">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+            <span>Memory Content</span>
+            <span class="text-slate-500 font-mono text-[9px]">${(m.content || '').length} chars</span>
+          </span>
+          <div class="prose-dark">
+            ${renderMarkdown(m.content)}
+          </div>
+        </div>
+
+        ${m.metadata && Object.keys(m.metadata).length > 0 ? `
+          <div class="space-y-1">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Metadata</span>
+            <pre class="p-3 rounded-xl bg-black/40 border border-white/10 font-mono text-[11px] text-slate-300 overflow-x-auto">${escapeHtml(JSON.stringify(m.metadata, null, 2))}</pre>
+          </div>
+        ` : ''}
+
+        <div class="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-purple-300 text-xs flex items-start gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-purple-400 shrink-0 mt-0.5"></i>
+          <div>
+            <div class="font-semibold text-[11px]">How to Ground into KG</div>
+            <div class="text-[10px] text-purple-300/80 mt-0.5">Agents can ground this memory into entities by calling <code class="bg-black/30 px-1 py-0.5 rounded text-purple-200 font-mono">link_entities</code> or passing <code class="bg-black/30 px-1 py-0.5 rounded text-purple-200 font-mono">entities</code> & <code class="bg-black/30 px-1 py-0.5 rounded text-purple-200 font-mono">relations</code> in <code class="bg-black/30 px-1 py-0.5 rounded text-purple-200 font-mono">store_memory</code>.</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function inspectRelation(edgeId) {
+      const rel = rawRelations.find(r => r.id === edgeId);
+      if (!rel) return;
+
+      const src = rawEntities.find(e => e.id === rel.src);
+      const dst = rawEntities.find(e => e.id === rel.dst);
+      const isSup = Boolean(rel.valid_to);
+      const evidenceMem = rawMemories.find(m => m.id === rel.memory_id);
+
+      const drawer = document.getElementById('inspectorDrawer');
+      const title = document.getElementById('inspectorTitle');
+      const content = document.getElementById('inspectorContent');
+
+      title.textContent = `Relation: ${rel.predicate}`;
+      drawer.classList.remove('translate-x-full');
+
+      content.innerHTML = `
+        <div class="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</span>
+            ${isSup 
+              ? '<span class="px-2 py-0.5 rounded-full text-[10px] bg-red-950 text-red-400 border border-red-800 font-semibold">Superseded</span>'
+              : '<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 font-semibold">Active</span>'
+            }
+          </div>
+
+          <div class="space-y-2 font-mono text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Source:</span>
+              <button onclick="focusAndInspectNode('${rel.src}')" class="text-emerald-400 hover:underline font-bold">${escapeHtml(src ? src.name : rel.src)}</button>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Predicate:</span>
+              <span class="text-white font-bold bg-white/10 px-2 py-0.5 rounded">${escapeHtml(rel.predicate)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Destination:</span>
+              <button onclick="focusAndInspectNode('${rel.dst}')" class="text-sky-400 hover:underline font-bold">${escapeHtml(dst ? dst.name : rel.dst)}</button>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-white/10 text-[11px] text-slate-400 space-y-1">
+            <div>Valid From: <span class="font-mono text-slate-200">${formatDate(rel.valid_from)}</span></div>
+            ${rel.valid_to ? `<div>Valid To: <span class="font-mono text-red-300">${formatDate(rel.valid_to)}</span></div>` : ''}
+          </div>
+        </div>
+
+        ${evidenceMem ? `
+          <div class="space-y-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Grounded Evidence Memory</span>
+            <div class="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full text-[10px] bg-purple-950 text-purple-300 border border-purple-800 font-semibold uppercase tracking-wider">${escapeHtml(evidenceMem.category)}</span>
+                <span class="text-[10px] text-slate-400 font-mono">${formatDate(evidenceMem.created_at)}</span>
+              </div>
+              <div class="prose-dark">
+                ${renderMarkdown(evidenceMem.content)}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      `;
+      lucide.createIcons();
+    }
+
+    function closeInspector() {
+      document.getElementById('inspectorDrawer').classList.add('translate-x-full');
+      selectedEntityId = null;
+    }
+
+    function focusAndInspectNode(nodeId) {
+      if (!network) return;
+      network.focus(nodeId, { scale: 1.2, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+      inspectEntity(nodeId);
+    }
+
+    function isolateEntityNeighborhood(nodeId) {
+      focusCenterEntityId = nodeId;
+      focusHopDepth = 1;
+      renderGraph();
+      focusAndInspectNode(nodeId);
+    }
+
+    // --- SEARCH & AUTOCOMPLETE ---
+    function handleSearch(val) {
+      const q = val.trim().toLowerCase();
+      const dropdown = document.getElementById('searchDropdown');
+      const btnClear = document.getElementById('btnClearSearch');
+
+      if (!q) {
+        dropdown.classList.add('hidden');
+        btnClear.classList.add('hidden');
+        return;
+      }
+      btnClear.classList.remove('hidden');
+
+      const unlinkedEntities = getUnlinkedMemoryEntities();
+      const allSearchNodes = [...rawEntities, ...unlinkedEntities];
+
+      const matches = allSearchNodes.filter(e => {
+        if (e.name.toLowerCase().includes(q)) return true;
+        if (e.type && e.type.toLowerCase().includes(q)) return true;
+        if (e.aliases && e.aliases.some(a => a.toLowerCase().includes(q))) return true;
+        if (e.isMemoryNode && e.metadata?.full_content?.toLowerCase().includes(q)) return true;
+        return false;
+      }).slice(0, 10);
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-slate-500 text-xs italic">No matching entities found</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = matches.map(e => {
+        const style = getTypeStyle(e.type);
+        return `
+          <button onclick="selectSearchResult('${e.id}')" class="w-full px-3 py-2 text-left hover:bg-white/10 flex items-center justify-between border-b border-white/5 last:border-0 transition">
+            <div class="overflow-hidden">
+              <div class="text-white font-bold text-xs truncate">${escapeHtml(e.name)}</div>
+              ${e.aliases && e.aliases.length > 0 ? `<div class="text-[10px] text-slate-400 truncate">aka: ${escapeHtml(e.aliases.join(', '))}</div>` : ''}
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${style.badge}">${escapeHtml(e.type)}</span>
+          </button>
+        `;
+      }).join('');
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function selectSearchResult(entityId) {
+      document.getElementById('searchDropdown').classList.add('hidden');
+      focusAndInspectNode(entityId);
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('searchDropdown').classList.add('hidden');
+      document.getElementById('btnClearSearch').classList.add('hidden');
+    }
+
+    // --- TOOLBAR CONTROLS ---
+    function fitGraph() {
+      if (network) network.fit({ animation: { duration: 600, easingFunction: 'easeInOutQuad' } });
+    }
+
+    function togglePhysics() {
+      isPhysicsActive = !isPhysicsActive;
+      network.setOptions({ physics: { enabled: isPhysicsActive } });
+      const btn = document.getElementById('btnPhysicsToggle');
+      if (isPhysicsActive) {
+        btn.classList.add('text-emerald-400');
+        btn.classList.remove('text-slate-400');
+      } else {
+        btn.classList.remove('text-emerald-400');
+        btn.classList.add('text-slate-400');
+      }
+    }
+
+    function toggleLayoutMode() {
+      isHierarchical = !isHierarchical;
+      if (isHierarchical) {
+        network.setOptions({
+          layout: {
+            hierarchical: {
+              enabled: true,
+              direction: 'LR',
+              sortMethod: 'directed',
+              levelSeparation: 160,
+              nodeSpacing: 110
+            }
+          }
+        });
+      } else {
+        network.setOptions({
+          layout: { hierarchical: { enabled: false } },
+          physics: { enabled: isPhysicsActive }
+        });
+      }
+      fitGraph();
+    }
+
+    function exportPNG() {
+      if (!network) return;
+      const canvas = document.querySelector('#graphContainer canvas');
+      if (!canvas) return;
+      const dataURL = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = `raymond-knowledge-graph-${Date.now()}.png`;
+      a.click();
+    }
+
+    // --- SUPABASE DATA SYNC ---
+    async function fetchFromSupabase(url, key) {
+      updateStatusBadge('connecting', 'Connecting...');
+      
+      let cleanUrl = (url || '').replace(/[\s\^/]+$/, '').trim();
+      let cleanKey = (key || '').replace(/[\s\^]+$/, '').replace(/^[\s\^]+/, '').trim();
+
+      if (cleanUrl === 'supabase.co' || cleanUrl === 'https://supabase.co' || cleanUrl === 'http://supabase.co' || !cleanUrl || cleanUrl.includes('xyzcompany')) {
+        cleanUrl = DEFAULT_SUPABASE_URL;
+      } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        cleanUrl = 'https://' + cleanUrl;
+      }
+
+      if (!cleanKey) {
+        cleanKey = DEFAULT_SUPABASE_KEY;
+      }
+
+      const headers = {
+        'apikey': cleanKey,
+        'Authorization': `Bearer ${cleanKey}`
+      };
+
+      try {
+        const [entRes, relRes, memRes, memEntRes] = await Promise.all([
+          fetch(`${cleanUrl}/rest/v1/entities?select=*&order=created_at.desc&limit=500`, { headers }),
+          fetch(`${cleanUrl}/rest/v1/relations?select=*&order=created_at.desc&limit=1000`, { headers }),
+          fetch(`${cleanUrl}/rest/v1/memories?select=id,agent_id,session_id,category,content,tags,created_at,metadata&order=created_at.desc&limit=300`, { headers }),
+          fetch(`${cleanUrl}/rest/v1/memory_entities?select=memory_id,entity_id`, { headers }),
+        ]);
+
+        if (!entRes.ok) throw new Error(`Entities query failed: ${entRes.statusText}`);
+        if (!relRes.ok) throw new Error(`Relations query failed: ${relRes.statusText}`);
+
+        rawEntities = await entRes.json();
+        rawRelations = await relRes.json();
+        rawMemories = memRes.ok ? await memRes.json() : [];
+        rawMemoryEntities = memEntRes.ok ? await memEntRes.json() : [];
+
+        try {
+          localStorage.setItem('raymond_supabase_url', cleanUrl);
+          localStorage.setItem('raymond_supabase_key', cleanKey);
+        } catch (_) {}
+
+        updateStatusBadge('connected', 'Live Supabase');
+        closeSettingsModal();
+        renderGraph();
+        setTimeout(fitGraph, 300);
+      } catch (err) {
+        console.error("Supabase fetch error:", err);
+        updateStatusBadge('error', 'Sync Failed');
+        throw err;
+      }
+    }
+
+    function loadDemoDataset() {
+      rawEntities = JSON.parse(JSON.stringify(DEMO_DATASET.entities));
+      rawRelations = JSON.parse(JSON.stringify(DEMO_DATASET.relations));
+      rawMemories = JSON.parse(JSON.stringify(DEMO_DATASET.memories));
+      rawMemoryEntities = JSON.parse(JSON.stringify(DEMO_DATASET.memory_entities));
+
+      updateStatusBadge('demo', 'Demo Dataset');
+      closeSettingsModal();
+      renderGraph();
+      setTimeout(fitGraph, 200);
+    }
+
+    async function refreshData() {
+      try {
+        const proxyRes = await fetch('/api/graph?refresh=true');
+        if (proxyRes.ok) {
+          const graphJson = await proxyRes.json();
+          if (graphJson && graphJson.entities) {
+            applyGraphJson(graphJson, 'Live Edge Proxy');
+            return;
+          }
+        }
+      } catch (_) {}
+
+      const url = document.getElementById('cfgSupabaseUrl').value.trim();
+      const key = document.getElementById('cfgSupabaseKey').value.trim();
+      if (url && key) {
+        try {
+          await fetchFromSupabase(url, key);
+        } catch (e) {
+          alert("Failed to refresh from Supabase: " + e.message);
+        }
+      } else {
+        openSettingsModal();
+      }
+    }
+
+    function updateStatusBadge(state, text) {
+      const indicator = document.getElementById('statusIndicator');
+      const textElem = document.getElementById('statusText');
+      textElem.textContent = text;
+
+      indicator.className = 'w-2 h-2 rounded-full';
+      if (state === 'connected') {
+        indicator.classList.add('bg-emerald-400');
+      } else if (state === 'connecting') {
+        indicator.classList.add('bg-amber-400', 'animate-pulse');
+      } else if (state === 'demo') {
+        indicator.classList.add('bg-sky-400');
+      } else if (state === 'disconnected') {
+        indicator.classList.add('bg-slate-500');
+      } else {
+        indicator.classList.add('bg-red-400');
+      }
+    }
+
+    // --- MODAL CONTROLS ---
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    async function saveAndConnectSupabase() {
+      let url = document.getElementById('cfgSupabaseUrl').value.trim();
+      let key = document.getElementById('cfgSupabaseKey').value.trim();
+      const alertBox = document.getElementById('modalStatusAlert');
+
+      if (url === 'supabase.co' || url === 'https://supabase.co' || url === 'http://supabase.co' || !url || url.includes('xyzcompany')) {
+        url = DEFAULT_SUPABASE_URL;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+        document.getElementById('cfgSupabaseUrl').value = url;
+      }
+
+      if (!key) {
+        key = DEFAULT_SUPABASE_KEY;
+        document.getElementById('cfgSupabaseKey').value = key;
+      }
+
+      alertBox.className = 'p-3 rounded-lg border text-xs bg-amber-950/60 text-amber-300 border-amber-800';
+      alertBox.textContent = 'Connecting to Supabase...';
+      alertBox.classList.remove('hidden');
+
+      try {
+        await fetchFromSupabase(url, key);
+        alertBox.classList.add('hidden');
+        closeSettingsModal();
+      } catch (err) {
+        alertBox.className = 'p-3 rounded-lg border text-xs bg-red-950/60 text-red-300 border-red-800';
+        alertBox.textContent = `Connection error: ${err.message}`;
+        alertBox.classList.remove('hidden');
+      }
+    }
+
+    // --- UTILITIES ---
+    let isDrawerExpanded = false;
+    function toggleDrawerWidth() {
+      const drawer = document.getElementById('inspectorDrawer');
+      const icon = document.getElementById('iconDrawerWidth');
+      isDrawerExpanded = !isDrawerExpanded;
+      if (isDrawerExpanded) {
+        drawer.classList.remove('w-96');
+        drawer.classList.add('w-full', 'md:w-[620px]');
+        icon.setAttribute('data-lucide', 'minimize-2');
+      } else {
+        drawer.classList.remove('w-full', 'md:w-[620px]');
+        drawer.classList.add('w-96');
+        icon.setAttribute('data-lucide', 'maximize-2');
+      }
+      lucide.createIcons();
+    }
+
+    function renderMarkdown(md) {
+      if (!md) return '';
+      if (typeof marked !== 'undefined') {
+        try {
+          return marked.parse(String(md));
+        } catch (e) {
+          console.warn("Markdown parse error:", e);
+        }
+      }
+      return escapeHtml(md).replace(/\n/g, '<br>');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatDate(ts) {
+      if (!ts) return '';
+      try {
+        const d = new Date(ts);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (_) {
+        return String(ts);
+      }
+    }
+  </script>
+</body>
+</html>

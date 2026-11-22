@@ -10,7 +10,15 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VIEWER_HTML="${SCRIPT_DIR}/packages/raymond-ui/index.html"
+VIEWER_HTML="${SCRIPT_DIR}/packages/raymond-ui/dist/index.html"
+
+if [ ! -f "$VIEWER_HTML" ]; then
+  VIEWER_HTML="${SCRIPT_DIR}/packages/raymond-ui/standalone.html"
+fi
+
+if [ ! -f "$VIEWER_HTML" ]; then
+  VIEWER_HTML="${SCRIPT_DIR}/packages/raymond-ui/index.html"
+fi
 
 if [ ! -f "$VIEWER_HTML" ]; then
   VIEWER_HTML="${SCRIPT_DIR}/raymond-ui/index.html"

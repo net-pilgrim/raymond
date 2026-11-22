@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "buildCommand": null,
-  "outputDirectory": "packages/raymond-ui",
+  "buildCommand": "npm --prefix packages/raymond-ui run build",
+  "outputDirectory": "packages/raymond-ui/dist",
   "rewrites": [
     {
       "source": "/(.*)",
