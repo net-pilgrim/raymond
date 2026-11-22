@@ -10,6 +10,14 @@
 
   export let graphData: KnowledgeGraphData;
   export let onSelectEntity: (entity: any) => void;
+  export let onOpenConnectModal: (sourceEntityId?: string) => void = () => {};
+  export let onDeleteRelation: (relationId: string) => void = () => {};
+
+  export function focusNeighborhood(entityId: string) {
+    focusCenterEntityId = entityId;
+    focusHopDepth = 1;
+    renderGraph();
+  }
 
   let container: HTMLDivElement;
   let network: Network | null = null;
@@ -332,6 +340,20 @@
         const nodeId = params.nodes[0];
         const ent = allGraphNodes.find(e => e.id === nodeId);
         if (ent) onSelectEntity(ent);
+      } else if (params.edges && params.edges.length > 0) {
+        const edgeId = params.edges[0];
+        const rel = (graphData.relations || []).find(r => r.id === edgeId);
+        if (rel) {
+          const srcName = getNodeDisplayName(rel.src || (rel as any).source_id);
+          const dstName = getNodeDisplayName(rel.dst || (rel as any).target_id);
+          triggerToast(`Relation: <b>${srcName}</b> ➔ <code>${rel.predicate}</code> ➔ <b>${dstName}</b>`, 'info', {
+            label: 'Delete',
+            onClick: () => {
+              onDeleteRelation(rel.id);
+              triggerToast('Relation deleted', 'info');
+            }
+          });
+        }
       }
     });
 
@@ -564,6 +586,15 @@
 
     <div class="right-tools">
       <button
+        class="tool-btn link-action-btn"
+        on:click={() => onOpenConnectModal('')}
+        title="Manually connect two entities"
+      >
+        <Link2 size={13} />
+        <span>+ Link</span>
+      </button>
+
+      <button
         class="tool-btn"
         class:active={showSuperseded}
         on:click={toggleSuperseded}
@@ -773,6 +804,17 @@
     background: transparent;
     color: var(--text-secondary);
     font-size: 0.72rem;
+  }
+
+  .tool-btn.link-action-btn {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--brand-400);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+  }
+
+  .tool-btn.link-action-btn:hover {
+    background: rgba(16, 185, 129, 0.3);
+    color: #ffffff;
   }
 
   .tool-btn:hover {

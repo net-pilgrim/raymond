@@ -1,4 +1,4 @@
-import type { Transaction, KnowledgeGraphData, CoordinationAct } from './types';
+import type { Transaction, KnowledgeGraphData, CoordinationAct, Relation, Entity } from './types';
 import { DEMO_TRANSACTIONS, DEMO_GRAPH_DATA } from './demoData';
 
 export const DEFAULT_SUPABASE_URL = 'https://zmocedvkqrcxwkthmwql.supabase.co';
@@ -15,7 +15,6 @@ export function getStoredCredentials(): { url: string; key: string } {
   let url = urlParam || localStorage.getItem('raymond_supabase_url') || DEFAULT_SUPABASE_URL;
   let key = keyParam || localStorage.getItem('raymond_supabase_key') || DEFAULT_SUPABASE_KEY;
 
-  // Clean stale/expired JWT tokens or invalid placeholders
   if (key && (key.startsWith('eyJhbGci') || key.includes('xyzcompany') || key.length < 20)) {
     key = DEFAULT_SUPABASE_KEY;
     localStorage.setItem('raymond_supabase_key', key);
@@ -51,13 +50,11 @@ export async function fetchTransactions(url?: string, key?: string): Promise<Tra
     });
 
     if (!txRes.ok) {
-      console.warn('Failed to fetch transactions from Supabase, loading demo transactions:', txRes.statusText);
       return DEMO_TRANSACTIONS;
     }
 
     const txs: Transaction[] = await txRes.json();
 
-    // Fetch coordination acts for audit trail
     try {
       const actsRes = await fetch(`${creds.url}/rest/v1/coordination_acts?select=*&order=created_at.asc`, {
         headers: {
@@ -83,7 +80,6 @@ export async function fetchTransactions(url?: string, key?: string): Promise<Tra
 
     return txs.length > 0 ? txs : DEMO_TRANSACTIONS;
   } catch (err) {
-    console.warn('Supabase fetch error, fallback to demo transactions:', err);
     return DEMO_TRANSACTIONS;
   }
 }
@@ -123,7 +119,83 @@ export async function fetchGraphData(url?: string, key?: string): Promise<Knowle
       memory_entities: memory_entities.length > 0 ? memory_entities : DEMO_GRAPH_DATA.memory_entities
     };
   } catch (err) {
-    console.warn('Supabase graph fetch error, fallback to demo graph:', err);
     return DEMO_GRAPH_DATA;
+  }
+}
+
+// --- PERSISTENCE MUTATIONS ---
+
+export async function createRelationInDb(relation: Relation): Promise<{ success: boolean; data?: any; error?: string }> {
+  const creds = getStoredCredentials();
+  const payload = {
+    id: relation.id.startsWith('rel_') ? undefined : relation.id,
+    src: relation.src || relation.source_id,
+    dst: relation.dst || relation.target_id,
+    predicate: relation.predicate,
+    valid_from: relation.valid_from || new Date().toISOString(),
+    valid_to: relation.valid_to || null,
+    metadata: relation.metadata || {}
+  };
+
+  try {
+    const res = await fetch(`${creds.url}/rest/v1/relations`, {
+      method: 'POST',
+      headers: {
+        'apikey': creds.key,
+        'Authorization': `Bearer ${creds.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: errText };
+    }
+    const data = await res.json();
+    return { success: true, data: data[0] || payload };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteRelationFromDb(relationId: string): Promise<{ success: boolean; error?: string }> {
+  const creds = getStoredCredentials();
+  try {
+    const res = await fetch(`${creds.url}/rest/v1/relations?id=eq.${relationId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': creds.key,
+        'Authorization': `Bearer ${creds.key}`
+      }
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: errText };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteEntityFromDb(entityId: string): Promise<{ success: boolean; error?: string }> {
+  const creds = getStoredCredentials();
+  try {
+    const res = await fetch(`${creds.url}/rest/v1/entities?id=eq.${entityId}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': creds.key,
+        'Authorization': `Bearer ${creds.key}`
+      }
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: errText };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
   }
 }
