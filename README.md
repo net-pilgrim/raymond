@@ -307,6 +307,10 @@ Autonomous agent handover protocol based on **Jan Dietz's DEMO Transaction Patte
 >   - Deno auth guard and state-machine tests.
 >   - Free-tier rate limiting and quota write caps.
 >   - Strictness knobs (`MCP_REQUIRE_AUTH=true`).
+> - 📋 **Phase 6 — Declarative MCP UI / Server-Driven UI [Planned]**:
+>   - Edge Function generates typed declarative JSON specs (`authorization`, `question`, `transaction_review`, `entity_diff`, `graph_slice`, `form`).
+>   - Vercel Svelte viewer (`raymond-ui`) serves as runtime interpreter and executor (`<DynamicUiRenderer />`).
+>   - Two-way action dispatch: user clicks trigger authenticated MCP tool calls / Supabase mutations directly from the embedded widget.
 
 ---
 
