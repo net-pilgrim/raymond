@@ -1,0 +1,7 @@
+{
+  "name": "@raymond/core",
+  "version": "1.0.0",
+  "description": "Raymond Core: Supabase Edge MCP server, PostgreSQL schema, and Dietz-Burgess memory protocol",
+  "private": false,
+  "license": "MIT"
+}

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "supabase/**"
+      - "packages/raymond-core/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -13,6 +13,9 @@ jobs:
   deploy:
     name: Deploy to Supabase Edge
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/raymond-core
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

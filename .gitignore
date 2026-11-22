@@ -10,6 +10,12 @@ raymond-graph*.json
 # Supabase Local State & Secrets
 .supabase/
 supabase/.temp/
+**/supabase/.temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 
 # Node
 node_modules/

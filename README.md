@@ -30,6 +30,17 @@
 
 ---
 
+## 📦 Monorepo Workspace
+
+Raymond is organized as a modular monorepo:
+
+| Package | Path | Description |
+| :--- | :--- | :--- |
+| **`@raymond/core`** | [`packages/raymond-core`](packages/raymond-core) | Supabase Edge Function MCP server, PostgreSQL schema & migrations (`pgvector`, `pg_trgm`), Dietz-Burgess transaction state machine. |
+| **`@raymond/ui`** | [`packages/raymond-ui`](packages/raymond-ui) | Interactive force-directed & DAG Knowledge Graph Visualizer, drag-to-connect linking, memory inspector. Deploys to GitHub Pages & Vercel. |
+
+---
+
 ## 🏗️ Architecture & How It Works
 
 ```mermaid
@@ -167,21 +178,21 @@ The graphical browser is deployed and live on **GitHub Pages**:
 - **Zero software**: No Python, no Node.js, no Docker, and no server processes. Runs 100% inside your browser.
 
 #### Option 2: Local Standalone Browser File (`file://`)
-You can also open [viewer/index.html](viewer/index.html) locally with no internet access:
-- Run `./open-viewer.sh --local` or double-click `viewer/index.html`.
+You can also open [packages/raymond-ui/index.html](packages/raymond-ui/index.html) locally with no internet access:
+- Run `./open-viewer.sh --local` or double-click `packages/raymond-ui/index.html`.
 - **Offline Drag-and-Drop**: Drag and drop any `graph.json` file onto the window (or click **Import JSON**) to view graphs offline without database credentials.
 
 #### Option 3: Optional Python CLI Helper (`serve.py`)
 If you want to pipe JSON to stdout or run terminal tests:
 ```bash
 # Print graph JSON directly to terminal
-python3 viewer/serve.py --json
+python3 packages/raymond-ui/serve.py --json
 
 # Save graph JSON representation to a file
-python3 viewer/serve.py --dump graph.json
+python3 packages/raymond-ui/serve.py --dump graph.json
 
 # Test connection and view statistics
-python3 viewer/serve.py --test
+python3 packages/raymond-ui/serve.py --test
 ```
 
 ---
@@ -282,7 +293,7 @@ Autonomous agent handover protocol based on **Jan Dietz's DEMO Transaction Patte
 ### 1. Supabase Setup
 1. Create a free account and project at [supabase.com](https://supabase.com).
 2. In the Supabase Dashboard, navigate to the **SQL Editor**.
-3. Open [`schema.sql`](schema.sql) from this repository, paste its contents into the SQL Editor, and click **Run**. This:
+3. Open [`packages/raymond-core/schema.sql`](packages/raymond-core/schema.sql) from this repository, paste its contents into the SQL Editor, and click **Run**. This:
    - Enables `vector` and `pg_trgm` extensions.
    - Creates `memories`, `entities`, `relations`, `memory_entities`, and `skills` tables.
    - Sets up HNSW vector indexes, trigram indexes, and recursive CTE graph traversal functions.

@@ -10,14 +10,22 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VIEWER_HTML="${SCRIPT_DIR}/viewer/index.html"
+VIEWER_HTML="${SCRIPT_DIR}/packages/raymond-ui/index.html"
+
+if [ ! -f "$VIEWER_HTML" ]; then
+  VIEWER_HTML="${SCRIPT_DIR}/raymond-ui/index.html"
+fi
+
+if [ ! -f "$VIEWER_HTML" ]; then
+  VIEWER_HTML="${SCRIPT_DIR}/viewer/index.html"
+fi
 
 if [ ! -f "$VIEWER_HTML" ]; then
   VIEWER_HTML="${SCRIPT_DIR}/index.html"
 fi
 
 if [ ! -f "$VIEWER_HTML" ]; then
-  echo "❌ Error: Could not find viewer/index.html" >&2
+  echo "❌ Error: Could not find index.html in packages/raymond-ui, raymond-ui, or viewer" >&2
   exit 1
 fi
 

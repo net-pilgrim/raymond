@@ -1,0 +1,14 @@
+{
+  "name": "raymond-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Raymond: Persistent Agentic Memory & Knowledge Graph Platform",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "open": "./open-viewer.sh",
+    "open:local": "./open-viewer.sh --local",
+    "serve:ui": "python3 packages/raymond-ui/serve.py"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@raymond/ui",
+  "version": "1.0.0",
+  "description": "Raymond UI: Interactive force-directed & DAG Knowledge Graph Visualizer",
+  "private": false,
+  "license": "MIT",
+  "scripts": {
+    "start": "python3 serve.py 8080",
+    "open": "./open.sh"
+  }
+}

@@ -168,13 +168,13 @@ update_memory(id="uuid-here", is_obsolete=True)
 1. **Provide the user with the direct viewer link**:
    - Web App: `https://net-pilgrim.github.io/raymond/`
    - Terminal Command: `./open-viewer.sh`
-   - Local File: `file:///home/dsv/work/mnesia/viewer/index.html`
+   - Local File: `file:///home/dsv/work/mnesia/packages/raymond-ui/index.html`
 2. **Graph Topology & Node Rules**:
    - **Entity Nodes**: Color-coded by type (`concept`, `component`, `technology`, `decision`, `agent`, `system`, `tool`).
    - **Gray Nodes (Unlinked Memories)**: Any memory in the database not yet linked to any entity or relation appears directly on the graph canvas as a distinct **gray node** (`type: 'memory'`). Clicking a gray node opens the slide-out inspector displaying its full Markdown content, author agent, category, tags, and guidance on grounding it into KG entities.
    - **Relations**: Directed edges labeled with predicates. Vibrant solid cyan/blue lines indicate active relations; dashed red lines indicate superseded historical relations (`valid_to` set).
    - **Interactive Drag-to-Connect**: Dragging any node onto another in the viewer canvas immediately creates a directed **`connected_to`** relation, automatically persisting it to the database with undo support.
-   - **Exporting JSON**: For programmatic graph export without graphical UI, call `get_knowledge_graph(active_only=...)` or `python3 viewer/serve.py --json`.
+   - **Exporting JSON**: For programmatic graph export without graphical UI, call `get_knowledge_graph(active_only=...)` or `python3 packages/raymond-ui/serve.py --json`.
 
 ---
 

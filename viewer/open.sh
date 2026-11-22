@@ -1,1 +1,0 @@
-../open-viewer.sh

@@ -1,4 +1,4 @@
-# Raymond Knowledge Graph Visualizer & Explorer
+# @raymond/ui — Knowledge Graph Visualizer & Explorer
 
 An interactive, zero-dependency graphical browser for multi-agent knowledge graphs and grounded memories.
 
@@ -6,14 +6,14 @@ An interactive, zero-dependency graphical browser for multi-agent knowledge grap
 
 ## 🚀 Quick Start (Zero Runtime Needed)
 
-### Option 1: Live Hosted GitHub Pages Viewer (Recommended)
-The interactive viewer is deployed live on GitHub Pages:
+### Option 1: Live Hosted GitHub Pages / Vercel Viewer (Recommended)
+The interactive viewer is deployed live:
 - 🌐 **Web App**: [`https://net-pilgrim.github.io/raymond/`](https://net-pilgrim.github.io/raymond/)
-- **1-Click Launch**: Run `./open-viewer.sh` from the repository root to automatically open the GitHub Pages app in your default browser with your credentials auto-connected.
+- **1-Click Launch**: Run `./open-viewer.sh` from the repository root to automatically open the web app in your default browser with your credentials auto-connected.
 - **Connect**: Click **Settings** to enter your Supabase URL & Key (stored in your browser's `localStorage` only), or click **Load Demo Graph** to explore offline.
 
 ### Option 2: Local Standalone File (`file://`)
-Run `./open-viewer.sh --local` or double-click `viewer/index.html` to open directly as a local file with no web server.
+Run `./open-viewer.sh --local` or double-click `index.html` to open directly as a local file with no web server.
 - **Offline Drag-and-Drop**: Drag any `graph.json` directly onto the canvas or click **Import JSON** to inspect without credentials.
 
 ### Option 3: Optional Python CLI Helper
@@ -21,16 +21,16 @@ If you prefer CLI workflows or piping JSON output to scripts:
 
 ```bash
 # Output graph JSON representation directly to stdout
-python3 viewer/serve.py --json
+python3 packages/raymond-ui/serve.py --json
 
 # Save graph JSON representation to a file
-python3 viewer/serve.py --dump graph.json
+python3 packages/raymond-ui/serve.py --dump graph.json
 
 # Test connection and view statistics
-python3 viewer/serve.py --test
+python3 packages/raymond-ui/serve.py --test
 
 # Optional local proxy server
-python3 viewer/serve.py 8080
+python3 packages/raymond-ui/serve.py 8080
 ```
 
 ---

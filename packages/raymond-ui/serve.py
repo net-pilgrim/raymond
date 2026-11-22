@@ -5,10 +5,10 @@ Fetches the Knowledge Graph JSON representation from Supabase / Edge Function
 and serves an interactive local viewer.
 
 Usage:
-    python3 viewer/serve.py [port]               # Start web viewer & proxy (default port: 8080)
-    python3 viewer/serve.py --json               # Output graph JSON to stdout
-    python3 viewer/serve.py --dump graph.json    # Save graph JSON to file
-    python3 viewer/serve.py --test               # Test connection and show stats
+    python3 packages/raymond-ui/serve.py [port]               # Start web viewer & proxy (default port: 8080)
+    python3 packages/raymond-ui/serve.py --json               # Output graph JSON to stdout
+    python3 packages/raymond-ui/serve.py --dump graph.json    # Save graph JSON to file
+    python3 packages/raymond-ui/serve.py --test               # Test connection and show stats
 """
 
 import argparse
@@ -40,6 +40,7 @@ def discover_credentials(cli_url=None, cli_key=None):
     # Try .env in workspace root
     if not (url and key):
         env_paths = [
+            os.path.join(DIRECTORY, "..", "..", ".env"),
             os.path.join(DIRECTORY, "..", ".env"),
             os.path.join(DIRECTORY, ".env"),
             ".env"
