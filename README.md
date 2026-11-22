@@ -256,6 +256,25 @@ flowchart LR
 | `get_skill` | `name` | Fetches step-by-step instructions for a published team skill. |
 | `publish_skill` | `name`, `description`, `instructions`, `tags`, `author_agent` | Publishes a novel procedure to Supabase for all agents to execute. |
 
+### 🤝 Dietz-Burgess Handover & Interaction Protocol Tools
+
+Autonomous agent handover protocol based on **Jan Dietz's DEMO Transaction Pattern** (Order $\rightarrow$ Execution $\rightarrow$ Result) and **Mark Burgess's Promise Theory** (Give/Use promises, autonomy, conditional commitments, independent assessment):
+
+| Tool | Role | Description |
+|---|---|---|
+| `tx_request` | Initiator | Initiates a transaction. Defines goal, testable acceptance criteria, deliverable paths, and review SLA promise. |
+| `tx_promise` | Executor | Binds executor to deliver the P-fact. Can be unconditional (`IN_EXECUTION`) or conditional with prerequisite demands (`CONDITIONAL_PROMISE`). |
+| `tx_decline` | Executor | Autonomously declines a request with justification and optional counter-proposal. |
+| `tx_fulfill_conditions` | Initiator | Fulfills prerequisites demanded by executor, moving transaction to `IN_EXECUTION`. |
+| `tx_declare` | Executor | Declares completion of work, submitting deliverables and verifiable evidence (test runs, diffs). |
+| `tx_accept` | Initiator | Validates evidence, records Promise as KEPT, closes transaction, and **auto-grounds P-fact into Raymond memories & KG**. |
+| `tx_reject` | Initiator | Rejects declaration due to failed criteria, providing delta feedback for remediation. |
+| `tx_revoke` | Initiator/Exec | Cancels/aborts an in-flight transaction with stated reasons. |
+| `tx_inbox` | Any | Polls transactions awaiting action filtered by agent ID, role (`initiator`/`executor`), and state. |
+| `tx_get` | Any | Inspects full transaction state and complete chronological coordination acts audit trail. |
+| `tx_publish_standing_promise` | Any | Registers an agent's capability and SLA in Raymond's discovery catalog and Knowledge Graph. |
+| `tx_find_executors` | Any | Discovers available agents offering matching standing promises and capabilities. |
+
 ---
 
 ## ⚙️ Configuration Guide

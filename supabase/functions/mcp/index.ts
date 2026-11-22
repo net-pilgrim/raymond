@@ -386,6 +386,195 @@ const MCP_TOOLS = [
       },
     },
   },
+  // ============================================================================
+  // Dietz-Burgess Transaction Protocol Tools
+  // ============================================================================
+  {
+    name: "tx_request",
+    description: "Initiate a formal Dietz-Burgess transaction. Expresses need (speech act Request) and issues a Use-Promise (review SLA)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        initiator_id: { type: "string", description: "Agent ID of the requester" },
+        executor_id: { type: "string", description: "Target agent ID committed to perform the work" },
+        p_fact_type: { type: "string", description: "Classification of Production Fact (e.g. FEATURE_IMPLEMENTATION, CODE_REVIEW, BUGFIX)" },
+        spec: {
+          type: "object",
+          properties: {
+            goal: { type: "string", description: "Clear summary of the goal to achieve" },
+            acceptance_criteria: { type: "array", items: { type: "string" }, description: "Specific verifiable criteria required for acceptance" },
+            deliverable_paths: { type: "array", items: { type: "string" }, description: "Expected output file paths, branch names, or links" },
+          },
+          required: ["goal", "acceptance_criteria"],
+        },
+        review_sla_seconds: { type: "number", description: "Initiator's promised review SLA in seconds once declared", default: 3600 },
+        parent_id: { type: "string", description: "Optional parent transaction ID if this is a sub-transaction" },
+        session_id: { type: "string", description: "Session/conversation scope" },
+      },
+      required: ["initiator_id", "executor_id", "p_fact_type", "spec"],
+    },
+  },
+  {
+    name: "tx_promise",
+    description: "Executor promises to deliver the P-fact. Can be unconditional (starts execution) or conditional (requires prerequisite resources)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        executor_id: { type: "string", description: "Agent ID making the promise (must match executor)" },
+        conditions: {
+          type: "array",
+          items: { type: "string" },
+          description: "Prerequisite conditions or resources required from initiator before work starts",
+        },
+        notes: { type: "string", description: "Commitment notes or clarifications" },
+      },
+      required: ["tx_id", "executor_id"],
+    },
+  },
+  {
+    name: "tx_decline",
+    description: "Executor autonomously declines the requested transaction with justification",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        executor_id: { type: "string", description: "Agent ID declining" },
+        reason: { type: "string", description: "Justification for declining (lack of capacity, missing tools, out of scope)" },
+        counter_proposal: { type: "object", description: "Optional counter-proposal terms" },
+      },
+      required: ["tx_id", "executor_id", "reason"],
+    },
+  },
+  {
+    name: "tx_fulfill_conditions",
+    description: "Initiator fulfills the prerequisite conditions demanded in a conditional promise, transitioning to IN_EXECUTION",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        initiator_id: { type: "string", description: "Initiator agent ID" },
+        fulfillment_notes: { type: "string", description: "Details on how conditions were met (e.g. credentials provided, branch pushed)" },
+        fulfilled_resources: { type: "object", description: "Arbitrary payload of provided resources" },
+      },
+      required: ["tx_id", "initiator_id", "fulfillment_notes"],
+    },
+  },
+  {
+    name: "tx_declare",
+    description: "Executor declares completion of the P-fact, submitting deliverables and verifiable evidence (speech act Declare)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        executor_id: { type: "string", description: "Executor agent ID" },
+        deliverables: {
+          type: "object",
+          description: "Delivered artifacts (e.g. files, links, diffs)",
+        },
+        evidence: {
+          type: "object",
+          description: "Verifiable proof of completion (e.g. test outputs, execution logs, benchmark numbers)",
+        },
+        summary: { type: "string", description: "Executive summary of what was produced" },
+      },
+      required: ["tx_id", "executor_id", "deliverables", "evidence"],
+    },
+  },
+  {
+    name: "tx_accept",
+    description: "Initiator validates evidence, accepts the deliverable (Promise KEPT), and auto-grounds the P-fact into Raymond Knowledge Graph",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        initiator_id: { type: "string", description: "Initiator agent ID" },
+        assessment_notes: { type: "string", description: "Evaluation notes confirming criteria was verified" },
+        rating: { type: "string", description: "Assessment rating (default: KEPT)", default: "KEPT" },
+        persist_to_raymond: { type: "boolean", description: "Auto-create persistent memory and KG relations", default: true },
+      },
+      required: ["tx_id", "initiator_id"],
+    },
+  },
+  {
+    name: "tx_reject",
+    description: "Initiator rejects declaration due to failed acceptance criteria, returning transaction to REJECTED for remediation",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        initiator_id: { type: "string", description: "Initiator agent ID" },
+        delta_feedback: { type: "string", description: "Specific details on which criteria failed and required fixes" },
+        remediation_requests: { type: "array", items: { type: "string" }, description: "Specific action items requested" },
+      },
+      required: ["tx_id", "initiator_id", "delta_feedback"],
+    },
+  },
+  {
+    name: "tx_revoke",
+    description: "Cancel/abort a transaction in flight (by Initiator revoking request or Executor quitting promise)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        actor_id: { type: "string", description: "Agent ID cancelling" },
+        reason: { type: "string", description: "Reason for revocation/abort" },
+      },
+      required: ["tx_id", "actor_id", "reason"],
+    },
+  },
+  {
+    name: "tx_inbox",
+    description: "List transactions awaiting action for an agent (as initiator, executor, or either)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agent_id: { type: "string", description: "Agent ID" },
+        role: { type: "string", enum: ["initiator", "executor", "all"], default: "all" },
+        state: { type: "string", description: "Optional filter by transaction state" },
+        limit: { type: "number", default: 20 },
+      },
+      required: ["agent_id"],
+    },
+  },
+  {
+    name: "tx_get",
+    description: "Retrieve full details and immutable coordination acts audit trail for a transaction",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tx_id: { type: "string", description: "Transaction ID" },
+        include_acts: { type: "boolean", description: "Include coordination acts audit log", default: true },
+      },
+      required: ["tx_id"],
+    },
+  },
+  {
+    name: "tx_publish_standing_promise",
+    description: "Register an agent's capability and standing promise in Raymond's discovery catalog",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agent_id: { type: "string", description: "Agent ID" },
+        capability: { type: "string", description: "Capability identifier (e.g. PYTHON_CODE_REVIEW, TEST_GENERATION)" },
+        description: { type: "string", description: "Detailed description of what is promised" },
+        guaranteed_sla_seconds: { type: "number", description: "Expected turnaround SLA in seconds" },
+        prerequisites: { type: "array", items: { type: "string" }, description: "Standard prerequisites required" },
+        metadata: { type: "object", description: "Arbitrary capability metadata" },
+      },
+      required: ["agent_id", "capability", "description"],
+    },
+  },
+  {
+    name: "tx_find_executors",
+    description: "Discover agents offering matching standing promises, with their track record of kept promises",
+    inputSchema: {
+      type: "object",
+      properties: {
+        capability: { type: "string", description: "Capability name to search for" },
+      },
+    },
+  },
 ];
 
 /**
@@ -1689,6 +1878,632 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
               memories,
               memory_entities: memoryEntities,
             }, null, 2),
+          }],
+        };
+      }
+
+      // ==============================================================================
+      // Dietz-Burgess Transaction Protocol Handlers
+      // ==============================================================================
+
+      case "tx_request": {
+        const {
+          initiator_id,
+          executor_id,
+          p_fact_type,
+          spec,
+          review_sla_seconds = 3600,
+          parent_id,
+          session_id,
+        } = args;
+
+        if (!initiator_id || !executor_id || !p_fact_type || !spec) {
+          return { isError: true, content: [{ type: "text", text: "Missing required parameters: initiator_id, executor_id, p_fact_type, spec" }] };
+        }
+
+        const { data: tx, error: txErr } = await supabase
+          .from("transactions")
+          .insert({
+            initiator_id,
+            executor_id,
+            state: "REQUESTED",
+            p_fact_type,
+            p_fact_spec: spec,
+            review_sla_seconds,
+            parent_id: parent_id || null,
+            session_id: session_id || null,
+          })
+          .select()
+          .single();
+
+        if (txErr) {
+          return { isError: true, content: [{ type: "text", text: `Database error creating transaction: ${txErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx.id,
+          act_type: "REQUEST",
+          actor_id: initiator_id,
+          role: "INITIATOR",
+          message: `Requested ${p_fact_type}: ${spec.goal || "New work"}`,
+          payload: { spec, review_sla_seconds },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ success: true, message: "Transaction requested successfully", transaction: tx }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_promise": {
+        const { tx_id, executor_id, conditions = [], notes = "" } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.executor_id !== executor_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only assigned executor '${tx.executor_id}' can promise.` }] };
+        }
+
+        if (!["REQUESTED", "REJECTED"].includes(tx.state)) {
+          return { isError: true, content: [{ type: "text", text: `Cannot promise transaction in state '${tx.state}'. Must be REQUESTED or REJECTED.` }] };
+        }
+
+        const isConditional = Array.isArray(conditions) && conditions.length > 0;
+        const nextState = isConditional ? "CONDITIONAL_PROMISE" : "IN_EXECUTION";
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({
+            state: nextState,
+            conditions: isConditional ? conditions : [],
+          })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to update transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "PROMISE",
+          actor_id: executor_id,
+          role: "EXECUTOR",
+          message: isConditional ? `Conditional promise made with ${conditions.length} prerequisite(s)` : `Promise committed; execution started`,
+          payload: { conditions, notes },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              state: nextState,
+              message: isConditional ? "Conditional promise registered. Waiting for initiator to fulfill prerequisites." : "Promise confirmed. Work is now IN_EXECUTION.",
+              transaction: updatedTx,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_decline": {
+        const { tx_id, executor_id, reason, counter_proposal } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.executor_id !== executor_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only executor '${tx.executor_id}' can decline.` }] };
+        }
+
+        if (!["REQUESTED", "CONDITIONAL_PROMISE", "REJECTED"].includes(tx.state)) {
+          return { isError: true, content: [{ type: "text", text: `Cannot decline transaction in state '${tx.state}'.` }] };
+        }
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({ state: "DECLINED" })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to decline transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "DECLINE",
+          actor_id: executor_id,
+          role: "EXECUTOR",
+          message: reason || "Declined by executor",
+          payload: { counter_proposal },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ success: true, state: "DECLINED", transaction: updatedTx }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_fulfill_conditions": {
+        const { tx_id, initiator_id, fulfillment_notes, fulfilled_resources = {} } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.initiator_id !== initiator_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only initiator '${tx.initiator_id}' can fulfill conditions.` }] };
+        }
+
+        if (tx.state !== "CONDITIONAL_PROMISE") {
+          return { isError: true, content: [{ type: "text", text: `Transaction is not in CONDITIONAL_PROMISE state (current: '${tx.state}').` }] };
+        }
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({ state: "IN_EXECUTION" })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to update transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "FULFILL_CONDITIONS",
+          actor_id: initiator_id,
+          role: "INITIATOR",
+          message: fulfillment_notes || "Prerequisites fulfilled",
+          payload: { fulfilled_resources },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ success: true, state: "IN_EXECUTION", message: "Conditions fulfilled. Transaction moved to IN_EXECUTION.", transaction: updatedTx }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_declare": {
+        const { tx_id, executor_id, deliverables, evidence, summary = "" } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.executor_id !== executor_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only executor '${tx.executor_id}' can declare completion.` }] };
+        }
+
+        if (!["IN_EXECUTION", "PROMISED"].includes(tx.state)) {
+          return { isError: true, content: [{ type: "text", text: `Cannot declare in state '${tx.state}'. Must be IN_EXECUTION.` }] };
+        }
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({
+            state: "DECLARED",
+            deliverables: deliverables || {},
+            evidence: evidence || {},
+          })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to declare completion: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "DECLARE",
+          actor_id: executor_id,
+          role: "EXECUTOR",
+          message: summary || "Declared completion with evidence",
+          payload: { deliverables, evidence },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              state: "DECLARED",
+              message: `Declared. Initiator '${tx.initiator_id}' has ${tx.review_sla_seconds}s SLA to review and accept/reject.`,
+              transaction: updatedTx,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_accept": {
+        const { tx_id, initiator_id, assessment_notes = "", rating = "KEPT", persist_to_raymond = true } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.initiator_id !== initiator_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only initiator '${tx.initiator_id}' can accept.` }] };
+        }
+
+        if (tx.state !== "DECLARED") {
+          return { isError: true, content: [{ type: "text", text: `Cannot accept transaction in state '${tx.state}'. Must be DECLARED.` }] };
+        }
+
+        let memoryId: string | null = null;
+        let groundedEntities: any[] = [];
+        let groundedRelations: any[] = [];
+
+        if (persist_to_raymond) {
+          try {
+            const memoryContent = `P-Fact [${tx.p_fact_type}]: ${tx.p_fact_spec?.goal || "Completed Task"}. Executed by ${tx.executor_id} for ${tx.initiator_id}. Deliverables: ${JSON.stringify(tx.deliverables)}. Evidence verified: ${assessment_notes || "Verified against acceptance criteria"}.`;
+            const contentHash = await sha256Hex(memoryContent);
+            const embedResult = await generateEmbeddingWithStatus(memoryContent);
+
+            const { data: memData } = await supabase
+              .from("memories")
+              .insert({
+                agent_id: tx.executor_id,
+                session_id: tx.session_id,
+                category: "fact",
+                content: memoryContent,
+                tags: ["p_fact", "transaction", tx.p_fact_type],
+                metadata: {
+                  tx_id: tx.id,
+                  initiator: tx.initiator_id,
+                  executor: tx.executor_id,
+                  assessment_rating: rating,
+                  deliverables: tx.deliverables,
+                },
+                content_hash: contentHash,
+                embedding: embedResult.embedding || null,
+              })
+              .select()
+              .single();
+
+            if (memData) {
+              memoryId = memData.id;
+
+              const initEnt = await resolveOrCreateEntity(supabase, { name: tx.initiator_id, type: "agent" });
+              const execEnt = await resolveOrCreateEntity(supabase, { name: tx.executor_id, type: "agent" });
+              const txEnt = await resolveOrCreateEntity(supabase, { name: tx.id, type: "transaction" });
+
+              groundedEntities = [initEnt, execEnt, txEnt].filter(Boolean);
+
+              const rel1 = await linkEntitiesHelper(supabase, { src: tx.initiator_id, dst: tx.id, predicate: "commissioned" }, memoryId);
+              const rel2 = await linkEntitiesHelper(supabase, { src: tx.executor_id, dst: tx.id, predicate: "fulfilled" }, memoryId);
+              const rel3 = await linkEntitiesHelper(supabase, { src: tx.executor_id, dst: tx.initiator_id, predicate: "kept_promise_to" }, memoryId);
+
+              groundedRelations = [rel1, rel2, rel3].filter(Boolean);
+
+              for (const ent of groundedEntities) {
+                await supabase.from("memory_entities").insert({ memory_id: memoryId, entity_id: ent.id }).maybeSingle();
+              }
+            }
+          } catch (memErr) {
+            console.error("Error grounding P-fact to memory:", memErr);
+          }
+        }
+
+        const assessmentObj = {
+          status: "KEPT",
+          rating,
+          notes: assessment_notes,
+          accepted_at: new Date().toISOString(),
+        };
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({
+            state: "ACCEPTED",
+            assessment: assessmentObj,
+            memory_id: memoryId,
+          })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to update transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "ACCEPT",
+          actor_id: initiator_id,
+          role: "INITIATOR",
+          message: assessment_notes || "Deliverables verified and accepted (Promise KEPT)",
+          payload: { assessment: assessmentObj, memory_id: memoryId },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              state: "ACCEPTED",
+              message: "Transaction closed. Promise KEPT. P-Fact grounded in Raymond Memory & Knowledge Graph.",
+              memory_id: memoryId,
+              grounded_entities: groundedEntities.map(e => e.name),
+              transaction: updatedTx,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_reject": {
+        const { tx_id, initiator_id, delta_feedback, remediation_requests = [] } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.initiator_id !== initiator_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only initiator '${tx.initiator_id}' can reject.` }] };
+        }
+
+        if (tx.state !== "DECLARED") {
+          return { isError: true, content: [{ type: "text", text: `Cannot reject transaction in state '${tx.state}'. Must be DECLARED.` }] };
+        }
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({ state: "REJECTED" })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to reject transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "REJECT",
+          actor_id: initiator_id,
+          role: "INITIATOR",
+          message: delta_feedback || "Criteria not satisfied; remediation required",
+          payload: { delta_feedback, remediation_requests },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              state: "REJECTED",
+              message: "Declaration rejected. Executor can review delta feedback, re-promise, and remediate.",
+              transaction: updatedTx,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_revoke": {
+        const { tx_id, actor_id, reason } = args;
+
+        const { data: tx, error: fetchErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (fetchErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        if (tx.initiator_id !== actor_id && tx.executor_id !== actor_id) {
+          return { isError: true, content: [{ type: "text", text: `Forbidden: Only initiator or executor can revoke transaction.` }] };
+        }
+
+        if (["ACCEPTED", "DECLINED", "REVOKED"].includes(tx.state)) {
+          return { isError: true, content: [{ type: "text", text: `Cannot revoke transaction in terminal state '${tx.state}'.` }] };
+        }
+
+        const role = tx.initiator_id === actor_id ? "INITIATOR" : "EXECUTOR";
+
+        const { data: updatedTx, error: updateErr } = await supabase
+          .from("transactions")
+          .update({ state: "REVOKED" })
+          .eq("id", tx_id)
+          .select()
+          .single();
+
+        if (updateErr) {
+          return { isError: true, content: [{ type: "text", text: `Failed to revoke transaction: ${updateErr.message}` }] };
+        }
+
+        await supabase.from("coordination_acts").insert({
+          transaction_id: tx_id,
+          act_type: "REVOKE",
+          actor_id,
+          role,
+          message: reason || "Transaction revoked/aborted",
+          payload: { actor_id, role, reason },
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ success: true, state: "REVOKED", transaction: updatedTx }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_inbox": {
+        const { agent_id, role = "all", state, limit = 20 } = args;
+
+        let query = supabase.from("transactions").select("*");
+
+        if (role === "initiator") {
+          query = query.eq("initiator_id", agent_id);
+        } else if (role === "executor") {
+          query = query.eq("executor_id", agent_id);
+        } else {
+          query = query.or(`initiator_id.eq.${agent_id},executor_id.eq.${agent_id}`);
+        }
+
+        if (state) {
+          query = query.eq("state", state);
+        }
+
+        query = query.order("updated_at", { ascending: false }).limit(limit);
+
+        const { data: txs, error } = await query;
+
+        if (error) {
+          return { isError: true, content: [{ type: "text", text: `Database error querying inbox: ${error.message}` }] };
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ count: txs?.length || 0, agent_id, role, transactions: txs || [] }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_get": {
+        const { tx_id, include_acts = true } = args;
+
+        const { data: tx, error: txErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", tx_id)
+          .single();
+
+        if (txErr || !tx) {
+          return { isError: true, content: [{ type: "text", text: `Transaction '${tx_id}' not found.` }] };
+        }
+
+        let acts: any[] = [];
+        if (include_acts) {
+          const { data: actsData } = await supabase
+            .from("coordination_acts")
+            .select("*")
+            .eq("transaction_id", tx_id)
+            .order("created_at", { ascending: true });
+          acts = actsData || [];
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ transaction: tx, coordination_acts: acts }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_publish_standing_promise": {
+        const {
+          agent_id,
+          capability,
+          description,
+          guaranteed_sla_seconds,
+          prerequisites = [],
+          metadata = {},
+        } = args;
+
+        const { data: promiseData, error: promiseErr } = await supabase
+          .from("standing_promises")
+          .insert({
+            agent_id,
+            capability,
+            description,
+            guaranteed_sla_seconds,
+            prerequisites,
+            metadata,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (promiseErr) {
+          return { isError: true, content: [{ type: "text", text: `Error registering standing promise: ${promiseErr.message}` }] };
+        }
+
+        try {
+          await resolveOrCreateEntity(supabase, { name: agent_id, type: "agent" });
+          await resolveOrCreateEntity(supabase, { name: capability, type: "capability" });
+          await linkEntitiesHelper(supabase, { src: agent_id, dst: capability, predicate: "promises" });
+        } catch (_) {}
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ success: true, message: "Standing promise registered in catalog and knowledge graph", standing_promise: promiseData }, null, 2),
+          }],
+        };
+      }
+
+      case "tx_find_executors": {
+        const { capability } = args;
+
+        let query = supabase.from("standing_promises").select("*").eq("is_active", true);
+        if (capability) {
+          query = query.ilike("capability", `%${capability}%`);
+        }
+
+        const { data: catalog, error } = await query.order("created_at", { ascending: false });
+
+        if (error) {
+          return { isError: true, content: [{ type: "text", text: `Error searching catalog: ${error.message}` }] };
+        }
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ count: catalog?.length || 0, executors: catalog || [] }, null, 2),
           }],
         };
       }
