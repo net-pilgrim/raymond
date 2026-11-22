@@ -2,13 +2,13 @@
   import { onMount } from 'svelte';
   import {
     X, Mail, Key, ShieldCheck, LogOut, CheckCircle2,
-    AlertCircle, Sparkles, Bot, Plus, Loader2
+    AlertCircle, Sparkles, Bot, Plus, Loader2, Copy, Check, Code2
   } from '@lucide/svelte';
   import type { User } from '@supabase/supabase-js';
   import type { Agent } from '../types';
   import {
     signInWithMagicLink, signInWithOAuth, signOut,
-    fetchUserAgents, registerAgent
+    fetchUserAgents, registerAgent, getCurrentSession, getStoredCredentials
   } from '../supabase';
 
   export let isOpen = false;
@@ -29,15 +29,61 @@
   let isAddingAgent = false;
   let agentError = '';
 
+  // MCP Token & Config
+  let accessToken = '';
+  let tokenCopied = false;
+  let configCopied = false;
+  let activeConfigTab: 'antigravity' | 'claude' | 'cursor' = 'antigravity';
+  let creds = getStoredCredentials();
+
   async function loadAgents() {
     if (!currentUser) return;
     isFetchingAgents = true;
     agents = await fetchUserAgents();
     isFetchingAgents = false;
+
+    const session = await getCurrentSession();
+    accessToken = session?.access_token || '';
   }
 
   $: if (isOpen && currentUser) {
     loadAgents();
+  }
+
+  function copyToken() {
+    if (!accessToken) return;
+    navigator.clipboard.writeText(accessToken);
+    tokenCopied = true;
+    setTimeout(() => (tokenCopied = false), 2000);
+  }
+
+  $: mcpConfigJson = (() => {
+    const sseUrl = `${creds.url}/functions/v1/mcp/sse`;
+    if (activeConfigTab === 'cursor') {
+      return JSON.stringify({
+        mcpServers: {
+          raymond: {
+            url: `${sseUrl}?token=${accessToken || '<YOUR_TOKEN>'}`
+          }
+        }
+      }, null, 2);
+    }
+    return JSON.stringify({
+      mcpServers: {
+        raymond: {
+          url: sseUrl,
+          headers: {
+            Authorization: `Bearer ${accessToken || '<YOUR_TOKEN>'}`
+          }
+        }
+      }
+    }, null, 2);
+  })();
+
+  function copyConfig() {
+    navigator.clipboard.writeText(mcpConfigJson);
+    configCopied = true;
+    setTimeout(() => (configCopied = false), 2000);
   }
 
   async function handleMagicLink() {
@@ -204,6 +250,76 @@
                   </div>
                 {/each}
               {/if}
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <!-- Raymond MCP Token & Client Configuration -->
+          <div class="token-section">
+            <div class="section-header">
+              <div class="sec-title">
+                <Key size={15} class="sec-icon amber" />
+                <span>Your Raymond MCP Token & Config</span>
+              </div>
+              <span class="subtext">Use this Bearer token in your agent config (replaces service_role key)</span>
+            </div>
+
+            <!-- Token Bar -->
+            <div class="token-bar">
+              <input
+                type="password"
+                readonly
+                value={accessToken || 'Loading token...'}
+                class="font-mono text-xs token-input"
+              />
+              <button class="btn-copy" on:click={copyToken} title="Copy Bearer token">
+                {#if tokenCopied}
+                  <Check size={13} class="text-emerald" />
+                  <span>Copied!</span>
+                {:else}
+                  <Copy size={13} />
+                  <span>Copy Token</span>
+                {/if}
+              </button>
+            </div>
+
+            <!-- Config Tabs -->
+            <div class="config-tabs">
+              <button
+                class="cfg-tab-btn"
+                class:active={activeConfigTab === 'antigravity'}
+                on:click={() => (activeConfigTab = 'antigravity')}
+              >
+                Antigravity
+              </button>
+              <button
+                class="cfg-tab-btn"
+                class:active={activeConfigTab === 'claude'}
+                on:click={() => (activeConfigTab = 'claude')}
+              >
+                Claude Desktop
+              </button>
+              <button
+                class="cfg-tab-btn"
+                class:active={activeConfigTab === 'cursor'}
+                on:click={() => (activeConfigTab = 'cursor')}
+              >
+                Cursor
+              </button>
+            </div>
+
+            <div class="config-snippet-box">
+              <pre class="font-mono text-xs">{mcpConfigJson}</pre>
+              <button class="copy-snippet-btn font-mono" on:click={copyConfig}>
+                {#if configCopied}
+                  <Check size={12} class="text-emerald" />
+                  <span>Copied JSON</span>
+                {:else}
+                  <Copy size={12} />
+                  <span>Copy Config</span>
+                {/if}
+              </button>
             </div>
           </div>
 
@@ -701,6 +817,101 @@
   .agent-date {
     font-size: 0.65rem;
     color: var(--text-faint);
+  }
+
+  .token-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .token-bar {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .token-input {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+  }
+
+  .btn-copy {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.65rem;
+    border-radius: var(--radius-sm);
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--amber-400);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .btn-copy:hover {
+    background: rgba(251, 191, 36, 0.25);
+  }
+
+  .config-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.25rem;
+  }
+
+  .cfg-tab-btn {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .cfg-tab-btn.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--brand-400);
+  }
+
+  .config-snippet-box {
+    position: relative;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem;
+  }
+
+  .config-snippet-box pre {
+    margin: 0;
+    color: var(--text-secondary);
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .copy-snippet-btn {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 0.65rem;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .copy-snippet-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
   }
 
   .empty-agents, .loading-state {

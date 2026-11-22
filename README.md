@@ -338,6 +338,8 @@ This repository automatically deploys the MCP Edge Function to your Supabase pro
 
 ## 🤖 How to Configure Raymond on Your Agent
 
+Get your personal **Raymond Bearer Token** directly from the UI: click **Sign In** (or your account pill) in the top navbar, then copy your token or turnkey MCP JSON snippet.
+
 Configure your MCP client to connect to your live Supabase Edge Function URL:
 `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse`
 
@@ -349,7 +351,7 @@ Edit `~/.gemini/config/mcp_config.json`:
     "raymond": {
       "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse",
       "headers": {
-        "Authorization": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+        "Authorization": "Bearer YOUR_RAYMOND_AUTH_TOKEN"
       }
     }
   }
@@ -364,7 +366,7 @@ Edit `claude_desktop_config.json`:
     "raymond": {
       "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse",
       "headers": {
-        "Authorization": "Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY"
+        "Authorization": "Bearer YOUR_RAYMOND_AUTH_TOKEN"
       }
     }
   }
@@ -372,15 +374,19 @@ Edit `claude_desktop_config.json`:
 ```
 
 ### C. Cursor & Custom Clients
+Edit `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
     "raymond": {
-      "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse?apikey=YOUR_SUPABASE_SERVICE_ROLE_KEY"
+      "url": "https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/mcp/sse?token=YOUR_RAYMOND_AUTH_TOKEN"
     }
   }
 }
 ```
+
+> [!TIP]
+> **Headless / CI / Migration Mode**: You can still use your `SUPABASE_SERVICE_ROLE_KEY` for automated CLI pipelines or headless servers where user interactive login is not available. To allow legacy anon keys during migration, set the edge function secret `MCP_LEGACY_AUTH=on`.
 
 ---
 

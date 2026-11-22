@@ -6,9 +6,19 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@^2.49.1";
 import { getViewerHtml } from "./viewer_html.ts";
 
+export interface AuthContext {
+  userId?: string;
+  userEmail?: string;
+  isServiceRole?: boolean;
+  isLegacyAuth?: boolean;
+  token?: string;
+}
+
 interface Session {
   send: (data: any) => void;
   close: () => void;
+  authContext: AuthContext;
+  createdAt: number;
 }
 
 // Active SSE sessions in memory
@@ -30,6 +40,12 @@ const MCP_TOOLS = [
       properties: {
         content: { type: "string", description: "The factual knowledge, decision, or insight to remember" },
         agent_id: { type: "string", description: "Authoring agent identifier", default: "default_agent" },
+        visibility: {
+          type: "string",
+          enum: ["shared", "private"],
+          description: "Access scope: 'shared' (accessible by fleet agents) or 'private' (author only)",
+          default: "shared",
+        },
         category: { type: "string", description: "Category: 'fact', 'decision', 'preference', etc.", default: "general" },
         tags: { type: "array", items: { type: "string" }, description: "Tags for grouping/filtering" },
         session_id: { type: "string", description: "Workflow or conversation scope" },
@@ -689,7 +705,8 @@ interface EntityInput {
 async function resolveOrCreateEntity(
   supabase: SupabaseClient,
   entityInput: string | EntityInput,
-  explicitType?: string
+  explicitType?: string,
+  ownerId?: string
 ): Promise<{ id: string; name: string; type: string } | null> {
   const name = typeof entityInput === "string" ? entityInput.trim() : entityInput.name?.trim();
   const type = typeof entityInput === "object" && entityInput.type ? entityInput.type.trim() : (explicitType || "concept");
@@ -758,14 +775,20 @@ async function resolveOrCreateEntity(
   }
 
   // 4. Insert new entity
+  const insertPayload: any = {
+    name,
+    type,
+    aliases,
+    metadata,
+  };
+  if (ownerId) {
+    insertPayload.owner_id = ownerId;
+    insertPayload.visibility = "shared";
+  }
+
   const { data: inserted, error: insertErr } = await supabase
     .from("entities")
-    .insert({
-      name,
-      type,
-      aliases,
-      metadata,
-    })
+    .insert(insertPayload)
     .select("id, name, type")
     .single();
 
@@ -793,10 +816,11 @@ interface RelationInput {
 async function linkEntitiesHelper(
   supabase: SupabaseClient,
   rel: RelationInput,
-  memoryId?: string
+  memoryId?: string,
+  ownerId?: string
 ): Promise<any> {
-  const srcEntity = await resolveOrCreateEntity(supabase, rel.src, rel.src_type);
-  const dstEntity = await resolveOrCreateEntity(supabase, rel.dst, rel.dst_type);
+  const srcEntity = await resolveOrCreateEntity(supabase, rel.src, rel.src_type, ownerId);
+  const dstEntity = await resolveOrCreateEntity(supabase, rel.dst, rel.dst_type, ownerId);
 
   if (!srcEntity || !dstEntity) {
     throw new Error(`Failed to resolve entities for relation: '${rel.src}' -> '${rel.dst}'`);
@@ -823,6 +847,10 @@ async function linkEntitiesHelper(
     memory_id: memoryId || null,
     metadata: rel.metadata || {},
   };
+  if (ownerId) {
+    payload.owner_id = ownerId;
+    payload.visibility = "shared";
+  }
 
   const { data, error } = await supabase.from("relations").insert(payload).select().single();
   if (error) throw error;
@@ -907,7 +935,7 @@ async function purgeOrphanedEntities(
 /**
  * Execute tool calls against Supabase
  */
-async function executeTool(name: string, args: any, supabase: SupabaseClient): Promise<any> {
+async function executeTool(name: string, args: any, supabase: SupabaseClient, authContext?: AuthContext): Promise<any> {
   args = args || {};
 
   try {
@@ -916,6 +944,7 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
         const {
           content,
           agent_id = "default_agent",
+          visibility = "shared",
           category = "general",
           tags = [],
           session_id,
@@ -963,6 +992,10 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           content_hash: contentHash,
         };
         if (embeddingVector) payload.embedding = embeddingVector;
+        if (authContext?.userId) {
+          payload.owner_id = authContext.userId;
+          payload.visibility = visibility;
+        }
 
         const { data: memData, error: memErr } = await supabase
           .from("memories")
@@ -985,12 +1018,14 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
         if (Array.isArray(entities) && entities.length > 0) {
           for (const ent of entities) {
             try {
-              const resolved = await resolveOrCreateEntity(supabase, ent);
+              const resolved = await resolveOrCreateEntity(supabase, ent, undefined, authContext?.userId);
               if (resolved) {
                 groundedEntities.push(resolved);
+                const memEntPayload: any = { memory_id: memData.id, entity_id: resolved.id };
+                if (authContext?.userId) memEntPayload.owner_id = authContext.userId;
                 await supabase
                   .from("memory_entities")
-                  .insert({ memory_id: memData.id, entity_id: resolved.id })
+                  .insert(memEntPayload)
                   .maybeSingle();
               }
             } catch (entErr) {
@@ -1005,7 +1040,7 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           for (const rel of relations) {
             try {
               if (rel.src && rel.dst && rel.predicate) {
-                const linked = await linkEntitiesHelper(supabase, rel, memData.id);
+                const linked = await linkEntitiesHelper(supabase, rel, memData.id, authContext?.userId);
                 groundedRelations.push(linked);
               }
             } catch (relErr) {
@@ -1386,6 +1421,9 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           // Fallback Step 1: Clear Invalidated / Superseded Relations
           if (clear_invalidated_relations) {
             let relQuery = supabase.from("relations").select("id, src, dst, predicate, valid_from, valid_to");
+        if (authContext?.userId && !authContext.isServiceRole) {
+          relQuery = relQuery.eq("owner_id", authContext.userId);
+        }
             relQuery = relQuery.not("valid_to", "is", null).lte("valid_to", nowIso);
             const { data: staleRels, error: relErr } = await relQuery;
             if (!relErr && staleRels && staleRels.length > 0) {
@@ -1496,6 +1534,9 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
         }
 
         let query = supabase.from("memories").select("id, session_id, category, created_at, metadata");
+        if (authContext?.userId && !authContext.isServiceRole) {
+          query = query.eq("owner_id", authContext.userId);
+        }
         if (targetIds.length > 0) {
           query = query.in("id", targetIds);
         }
@@ -1661,6 +1702,9 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
         }
 
         let relQuery = supabase.from("relations").select("id, src, dst, predicate, valid_from, valid_to");
+        if (authContext?.userId && !authContext.isServiceRole) {
+          relQuery = relQuery.eq("owner_id", authContext.userId);
+        }
         if (targetIds.length > 0) {
           relQuery = relQuery.in("id", targetIds);
         }
@@ -1901,18 +1945,24 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           return { isError: true, content: [{ type: "text", text: "Missing required parameters: initiator_id, executor_id, p_fact_type, spec" }] };
         }
 
+        const txPayload: any = {
+          initiator_id,
+          executor_id,
+          state: "REQUESTED",
+          p_fact_type,
+          p_fact_spec: spec,
+          review_sla_seconds,
+          parent_id: parent_id || null,
+          session_id: session_id || null,
+        };
+        if (authContext?.userId) {
+          txPayload.owner_id = authContext.userId;
+          txPayload.visibility = "shared";
+        }
+
         const { data: tx, error: txErr } = await supabase
           .from("transactions")
-          .insert({
-            initiator_id,
-            executor_id,
-            state: "REQUESTED",
-            p_fact_type,
-            p_fact_spec: spec,
-            review_sla_seconds,
-            parent_id: parent_id || null,
-            session_id: session_id || null,
-          })
+          .insert(txPayload)
           .select()
           .single();
 
@@ -1920,14 +1970,16 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           return { isError: true, content: [{ type: "text", text: `Database error creating transaction: ${txErr.message}` }] };
         }
 
-        await supabase.from("coordination_acts").insert({
+        const actPayload: any = {
           transaction_id: tx.id,
           act_type: "REQUEST",
           actor_id: initiator_id,
           role: "INITIATOR",
           message: `Requested ${p_fact_type}: ${spec.goal || "New work"}`,
           payload: { spec, review_sla_seconds },
-        });
+        };
+        if (authContext?.userId) actPayload.owner_id = authContext.userId;
+        await supabase.from("coordination_acts").insert(actPayload);
 
         return {
           content: [{
@@ -2454,17 +2506,23 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
           metadata = {},
         } = args;
 
+        const standingPayload: any = {
+          agent_id,
+          capability,
+          description,
+          guaranteed_sla_seconds,
+          prerequisites,
+          metadata,
+          is_active: true,
+        };
+        if (authContext?.userId) {
+          standingPayload.owner_id = authContext.userId;
+          standingPayload.visibility = "shared";
+        }
+
         const { data: promiseData, error: promiseErr } = await supabase
           .from("standing_promises")
-          .insert({
-            agent_id,
-            capability,
-            description,
-            guaranteed_sla_seconds,
-            prerequisites,
-            metadata,
-            is_active: true,
-          })
+          .insert(standingPayload)
           .select()
           .single();
 
@@ -2473,9 +2531,9 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
         }
 
         try {
-          await resolveOrCreateEntity(supabase, { name: agent_id, type: "agent" });
-          await resolveOrCreateEntity(supabase, { name: capability, type: "capability" });
-          await linkEntitiesHelper(supabase, { src: agent_id, dst: capability, predicate: "promises" });
+          await resolveOrCreateEntity(supabase, { name: agent_id, type: "agent" }, undefined, authContext?.userId);
+          await resolveOrCreateEntity(supabase, { name: capability, type: "capability" }, undefined, authContext?.userId);
+          await linkEntitiesHelper(supabase, { src: agent_id, dst: capability, predicate: "promises" }, undefined, authContext?.userId);
         } catch (_) {}
 
         return {
@@ -2521,7 +2579,8 @@ async function executeTool(name: string, args: any, supabase: SupabaseClient): P
  */
 async function handleJsonRpc(
   msg: any,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  authContext?: AuthContext
 ): Promise<any | null> {
   const { jsonrpc, id, method, params } = msg;
 
@@ -2536,7 +2595,7 @@ async function handleJsonRpc(
         },
         serverInfo: {
           name: "RaymondMemorySystem",
-          version: "1.1.0",
+          version: "1.2.0",
         },
       },
     };
@@ -2563,7 +2622,7 @@ async function handleJsonRpc(
   if (method === "tools/call") {
     const toolName = params?.name;
     const toolArgs = params?.arguments;
-    const toolResult = await executeTool(toolName, toolArgs, supabase);
+    const toolResult = await executeTool(toolName, toolArgs, supabase, authContext);
     return {
       jsonrpc: "2.0",
       id,
@@ -2585,6 +2644,98 @@ async function handleJsonRpc(
   return null;
 }
 
+/**
+ * Verify authentication token on incoming requests
+ * Supports:
+ * 1. Supabase Auth JWT (Bearer token from UI / per-agent tokens)
+ * 2. Service Role key (administrative / headless CLI fallback)
+ * 3. Anon key fallback if MCP_LEGACY_AUTH is enabled
+ */
+async function verifyAuth(
+  req: Request,
+  url: URL,
+  supabase: SupabaseClient
+): Promise<{ authContext?: AuthContext; error?: string }> {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const allowLegacy = Deno.env.get("MCP_LEGACY_AUTH") === "on" || Deno.env.get("MCP_LEGACY_AUTH") === "true";
+
+  const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const apiKeyHeader = req.headers.get("apikey");
+  const queryKey = url.searchParams.get("apikey") || url.searchParams.get("token") || url.searchParams.get("key");
+
+  const provided = authHeader || apiKeyHeader || queryKey;
+  if (!provided) {
+    return {
+      error: "Unauthorized: Missing authentication token. Please provide 'Authorization: Bearer <token>' with your Supabase Auth access token.",
+    };
+  }
+
+  // 1. Service role key bypass (administrative / local CLI)
+  if (serviceKey && provided === serviceKey) {
+    return {
+      authContext: {
+        isServiceRole: true,
+        token: provided,
+      },
+    };
+  }
+
+  // 2. Supabase Auth JWT verification
+  try {
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(provided);
+    if (user && !userErr) {
+      return {
+        authContext: {
+          userId: user.id,
+          userEmail: user.email,
+          token: provided,
+        },
+      };
+    }
+  } catch (_) {
+    // Continue to check fallback
+  }
+
+  // 3. Fallback: Anon key (only if legacy auth allowed or anon development)
+  if ((allowLegacy || !serviceKey) && anonKey && provided === anonKey) {
+    return {
+      authContext: {
+        isLegacyAuth: true,
+        token: provided,
+      },
+    };
+  }
+
+  return {
+    error: "Unauthorized: Invalid or expired Bearer token. Please sign in to Raymond UI to copy your active access token.",
+  };
+}
+
+/**
+ * Get client scoped to user's identity to enforce Row Level Security
+ */
+function getScopedClient(
+  supabaseUrl: string,
+  anonKey: string,
+  serviceKey: string | undefined,
+  authContext?: AuthContext
+): SupabaseClient {
+  if (authContext?.isServiceRole && serviceKey) {
+    return createClient(supabaseUrl, serviceKey);
+  }
+  if (authContext?.token) {
+    return createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${authContext.token}`,
+        },
+      },
+    });
+  }
+  return createClient(supabaseUrl, serviceKey || anonKey);
+}
+
 // Main Edge Function HTTP Handler
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -2595,8 +2746,9 @@ Deno.serve(async (req: Request) => {
   const pathname = url.pathname;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || serviceKey!;
+  const adminSupabase = createClient(supabaseUrl, serviceKey || anonKey);
 
   // 0. Graphical Knowledge Graph Viewer & Graph JSON API
   if (
@@ -2612,31 +2764,34 @@ Deno.serve(async (req: Request) => {
       (pathname.endsWith("/graph") && !req.headers.get("accept")?.includes("text/html"));
 
     if (isJson) {
+      const authResult = await verifyAuth(req, url, adminSupabase);
+      const queryClient = getScopedClient(supabaseUrl, anonKey, serviceKey, authResult.authContext);
+
       const activeOnly = url.searchParams.get("active_only") === "true";
       const limit = parseInt(url.searchParams.get("limit") || "1000", 10);
 
       const [entitiesRes, relationsRes, memoriesRes, memoryEntitiesRes] = await Promise.all([
-        supabase
+        queryClient
           .from("entities")
           .select("id, name, type, aliases, metadata, created_at, updated_at")
           .order("name")
           .limit(limit),
         activeOnly
-          ? supabase
+          ? queryClient
               .from("relations")
               .select("id, src, dst, predicate, memory_id, valid_from, valid_to, metadata, created_at")
               .is("valid_to", null)
               .order("created_at")
-          : supabase
+          : queryClient
               .from("relations")
               .select("id, src, dst, predicate, memory_id, valid_from, valid_to, metadata, created_at")
               .order("created_at"),
-        supabase
+        queryClient
           .from("memories")
-          .select("id, agent_id, session_id, category, content, tags, metadata, created_at")
+          .select("id, owner_id, visibility, agent_id, session_id, category, content, tags, metadata, created_at")
           .order("created_at", { ascending: false })
           .limit(300),
-        supabase.from("memory_entities").select("memory_id, entity_id"),
+        queryClient.from("memory_entities").select("memory_id, entity_id"),
       ]);
 
       const entities = entitiesRes.data || [];
@@ -2709,9 +2864,9 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         status: "healthy",
         server: "RaymondMemorySystem",
-        version: "1.1.0",
+        version: "1.2.0",
         runtime: "supabase-edge",
-        features: ["vector_search", "full_text_search", "knowledge_graph", "skill_registry"],
+        features: ["vector_search", "full_text_search", "knowledge_graph", "skill_registry", "supabase_auth_rls"],
         config: {
           geminiKeyConfigured: !!geminiKey,
           openaiKeyConfigured: !!openaiKey,
@@ -2722,27 +2877,16 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // Authentication: Verify Supabase API Key (service_role or anon key)
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const validKeys = [serviceKey, anonKey].filter(Boolean) as string[];
-
-  if (validKeys.length > 0) {
-    const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    const apiKeyHeader = req.headers.get("apikey");
-    const queryKey = url.searchParams.get("apikey") || url.searchParams.get("token") || url.searchParams.get("key");
-
-    const providedKey = authHeader || apiKeyHeader || queryKey;
-    if (!providedKey || !validKeys.includes(providedKey)) {
+  // 1. GET /sse -> Establish Server-Sent Events stream with token auth
+  if (req.method === "GET" && (pathname.endsWith("/sse") || url.searchParams.get("transport") === "sse")) {
+    const authResult = await verifyAuth(req, url, adminSupabase);
+    if (authResult.error) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized: Missing or invalid Supabase API Key" }),
+        JSON.stringify({ error: authResult.error }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-  }
 
-  // 1. GET /sse -> Establish Server-Sent Events stream
-  if (req.method === "GET" && (pathname.endsWith("/sse") || url.searchParams.get("transport") === "sse")) {
     const sessionId = crypto.randomUUID();
     const encoder = new TextEncoder();
     let streamController: ReadableStreamDefaultController<Uint8Array>;
@@ -2776,6 +2920,8 @@ Deno.serve(async (req: Request) => {
           streamController.close();
         } catch (_) {}
       },
+      authContext: authResult.authContext!,
+      createdAt: Date.now(),
     });
 
     req.signal?.addEventListener("abort", () => {
@@ -2796,7 +2942,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "POST" && (pathname.includes("/message") || url.searchParams.has("sessionId"))) {
     const sessionId = url.searchParams.get("sessionId");
     if (!sessionId || !sessions.has(sessionId)) {
-      return new Response(JSON.stringify({ error: "Session not found or expired" }), {
+      return new Response(JSON.stringify({ error: "Session not found or expired. Please reconnect." }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -2805,7 +2951,9 @@ Deno.serve(async (req: Request) => {
     const session = sessions.get(sessionId)!;
     const body = await req.json();
 
-    handleJsonRpc(body, supabase).then((response) => {
+    const scopedClient = getScopedClient(supabaseUrl, anonKey, serviceKey, session.authContext);
+
+    handleJsonRpc(body, scopedClient, session.authContext).then((response) => {
       if (response) {
         session.send(response);
       }
@@ -2826,8 +2974,20 @@ Deno.serve(async (req: Request) => {
   // 3. Direct JSON-RPC over HTTP POST (Stateless / Streamable HTTP)
   if (req.method === "POST") {
     try {
+      const authResult = await verifyAuth(req, url, adminSupabase);
+      if (authResult.error) {
+        return new Response(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32001, message: authResult.error },
+          }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const body = await req.json();
-      const response = await handleJsonRpc(body, supabase);
+      const scopedClient = getScopedClient(supabaseUrl, anonKey, serviceKey, authResult.authContext);
+      const response = await handleJsonRpc(body, scopedClient, authResult.authContext);
       return new Response(JSON.stringify(response || {}), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
