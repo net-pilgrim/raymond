@@ -7,11 +7,30 @@
 create extension if not exists vector;
 create extension if not exists pg_trgm;
 
+-- 1b. Create Agents Registry Table
+-- Models per-agent identity owned by Supabase Auth users (auth.users)
+create table if not exists public.agents (
+    id uuid primary key default gen_random_uuid(),
+    owner_id uuid references auth.users(id) on delete cascade not null,
+    name text not null,
+    display_name text,
+    api_key_hash text,
+    metadata jsonb default '{}'::jsonb not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    constraint unique_agent_per_owner unique(owner_id, name)
+);
+
+create index if not exists idx_agents_owner_id on public.agents(owner_id);
+create index if not exists idx_agents_name on public.agents(name);
+
 -- 2. Create the memories table
 create table if not exists public.memories (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    owner_id uuid references auth.users(id) on delete set null, -- Supabase Auth owner
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')), -- Access visibility
     agent_id text not null,                       -- ID/Name of the agent that created/owns the memory
     session_id text,                              -- Optional session/workflow/conversation scope
     category text default 'general' not null,     -- e.g. 'fact', 'decision', 'preference', 'instruction', 'reflection', 'summary'
@@ -22,8 +41,10 @@ create table if not exists public.memories (
     embedding vector(768)                         -- Vector embedding (768 dimensions for Gemini gemini-embedding-001)
 );
 
--- Ensure column exists if migrating an existing memories table
+-- Ensure columns exist if migrating an existing memories table
 alter table public.memories add column if not exists content_hash text;
+alter table public.memories add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.memories add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
 
 -- 3. Automatic timestamp updater trigger
 create or replace function update_updated_at_column()
@@ -34,13 +55,39 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists set_agents_updated_at on public.agents;
+create trigger set_agents_updated_at
+    before update on public.agents
+    for each row
+    execute function update_updated_at_column();
+
 drop trigger if exists set_memories_updated_at on public.memories;
 create trigger set_memories_updated_at
     before update on public.memories
     for each row
     execute function update_updated_at_column();
 
+-- Enable RLS on agents table
+alter table public.agents enable row level security;
+
+drop policy if exists "Allow service role full access on agents" on public.agents;
+create policy "Allow service role full access on agents"
+    on public.agents for all to service_role using (true) with check (true);
+
+drop policy if exists "Users can manage their own agents" on public.agents;
+create policy "Users can manage their own agents"
+    on public.agents for all to authenticated
+    using (owner_id = auth.uid())
+    with check (owner_id = auth.uid());
+
+drop policy if exists "Anon read access on agents" on public.agents;
+create policy "Anon read access on agents"
+    on public.agents for select to anon
+    using (true);
+
 -- 4. Indexes for high performance querying
+create index if not exists idx_memories_owner_id on public.memories(owner_id);
+create index if not exists idx_memories_visibility on public.memories(visibility);
 create index if not exists idx_memories_agent_id on public.memories(agent_id);
 create index if not exists idx_memories_session_id on public.memories(session_id);
 create index if not exists idx_memories_category on public.memories(category);
@@ -160,9 +207,35 @@ $$;
 -- 7. Row Level Security (RLS) - memories
 alter table public.memories enable row level security;
 drop policy if exists "Allow service role full access on memories" on public.memories;
-create policy "Allow service role full access on memories" on public.memories for all to service_role using (true) with check (true);
+create policy "Allow service role full access on memories"
+    on public.memories for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select memories" on public.memories;
+create policy "Authenticated users select memories"
+    on public.memories for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert memories" on public.memories;
+create policy "Authenticated users insert memories"
+    on public.memories for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own memories" on public.memories;
+create policy "Authenticated users update own memories"
+    on public.memories for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own memories" on public.memories;
+create policy "Authenticated users delete own memories"
+    on public.memories for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared memories" on public.memories;
 drop policy if exists "Allow anon access for development on memories" on public.memories;
-create policy "Allow anon access for development on memories" on public.memories for all to anon using (true) with check (true);
+create policy "Anon select shared memories"
+    on public.memories for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 -- ==============================================================================
 -- 8. Skills Table (Dynamic Skills Registry exposed via MCP)
@@ -171,6 +244,8 @@ create table if not exists public.skills (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    owner_id uuid references auth.users(id) on delete set null,
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')),
     name text unique not null,                     -- Unique identifier e.g. 'agent-handover'
     description text not null,                    -- Brief summary of what the skill does
     instructions text not null,                   -- Step-by-step instructions / runbook (Markdown)
@@ -178,6 +253,9 @@ create table if not exists public.skills (
     author_agent text default 'system' not null,  -- Agent that created or published the skill
     metadata jsonb default '{}'::jsonb not null   -- Arbitrary metadata (version, examples, etc.)
 );
+
+alter table public.skills add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.skills add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
 
 drop trigger if exists set_skills_updated_at on public.skills;
 create trigger set_skills_updated_at
@@ -187,12 +265,40 @@ create trigger set_skills_updated_at
 
 create index if not exists idx_skills_name on public.skills(name);
 create index if not exists idx_skills_tags on public.skills using gin(tags);
+create index if not exists idx_skills_owner_id on public.skills(owner_id);
+create index if not exists idx_skills_visibility on public.skills(visibility);
 
 alter table public.skills enable row level security;
 drop policy if exists "Allow service role full access on skills" on public.skills;
-create policy "Allow service role full access on skills" on public.skills for all to service_role using (true) with check (true);
+create policy "Allow service role full access on skills"
+    on public.skills for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select skills" on public.skills;
+create policy "Authenticated users select skills"
+    on public.skills for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert skills" on public.skills;
+create policy "Authenticated users insert skills"
+    on public.skills for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own skills" on public.skills;
+create policy "Authenticated users update own skills"
+    on public.skills for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own skills" on public.skills;
+create policy "Authenticated users delete own skills"
+    on public.skills for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared skills" on public.skills;
 drop policy if exists "Allow anon access on skills" on public.skills;
-create policy "Allow anon access on skills" on public.skills for all to anon using (true) with check (true);
+create policy "Anon select shared skills"
+    on public.skills for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 -- ==============================================================================
 -- 9. Knowledge Graph Architecture (Entities, Relations, Memory Grounding)
@@ -203,11 +309,16 @@ create table if not exists public.entities (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    owner_id uuid references auth.users(id) on delete set null,
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')),
     name text not null,
     type text default 'concept' not null,          -- e.g. 'concept', 'component', 'decision', 'system', 'agent', 'technology'
     aliases text[] default '{}'::text[] not null,  -- Alternate synonyms, short forms, or casing variants
     metadata jsonb default '{}'::jsonb not null
 );
+
+alter table public.entities add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.entities add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
 
 -- Unique index on normalized (lower name, type)
 create unique index if not exists uq_idx_entities_lower_name_type on public.entities (lower(name), type);
@@ -221,11 +332,15 @@ create trigger set_entities_updated_at
 create index if not exists idx_entities_name_trgm on public.entities using gin(name gin_trgm_ops);
 create index if not exists idx_entities_aliases on public.entities using gin(aliases);
 create index if not exists idx_entities_type on public.entities(type);
+create index if not exists idx_entities_owner_id on public.entities(owner_id);
+create index if not exists idx_entities_visibility on public.entities(visibility);
 
 -- 9.2 Relations Table (Graph Edges with Temporal Validity)
 create table if not exists public.relations (
     id uuid primary key default gen_random_uuid(),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    owner_id uuid references auth.users(id) on delete set null,
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')),
     src uuid not null references public.entities(id) on delete cascade,
     dst uuid not null references public.entities(id) on delete cascade,
     predicate text not null,                       -- e.g. 'depends_on', 'implements', 'uses', 'replaces', 'relates_to'
@@ -235,41 +350,113 @@ create table if not exists public.relations (
     metadata jsonb default '{}'::jsonb not null
 );
 
+alter table public.relations add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.relations add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
+
 create index if not exists idx_relations_src on public.relations(src);
 create index if not exists idx_relations_dst on public.relations(dst);
 create index if not exists idx_relations_predicate on public.relations(predicate);
 create index if not exists idx_relations_memory_id on public.relations(memory_id);
 create index if not exists idx_relations_valid on public.relations(valid_from, valid_to);
+create index if not exists idx_relations_owner_id on public.relations(owner_id);
+create index if not exists idx_relations_visibility on public.relations(visibility);
 
 -- 9.3 Memory <-> Entities Junction Table (Grounding)
 create table if not exists public.memory_entities (
     memory_id uuid not null references public.memories(id) on delete cascade,
     entity_id uuid not null references public.entities(id) on delete cascade,
+    owner_id uuid references auth.users(id) on delete set null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     primary key (memory_id, entity_id)
 );
 
+alter table public.memory_entities add column if not exists owner_id uuid references auth.users(id) on delete set null;
+
 create index if not exists idx_memory_entities_entity_id on public.memory_entities(entity_id);
 create index if not exists idx_memory_entities_memory_id on public.memory_entities(memory_id);
+create index if not exists idx_memory_entities_owner_id on public.memory_entities(owner_id);
 
 -- 9.4 Row Level Security (RLS) - Knowledge Graph
 alter table public.entities enable row level security;
 drop policy if exists "Allow service role full access on entities" on public.entities;
-create policy "Allow service role full access on entities" on public.entities for all to service_role using (true) with check (true);
+create policy "Allow service role full access on entities"
+    on public.entities for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select entities" on public.entities;
+create policy "Authenticated users select entities"
+    on public.entities for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert entities" on public.entities;
+create policy "Authenticated users insert entities"
+    on public.entities for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own entities" on public.entities;
+create policy "Authenticated users update own entities"
+    on public.entities for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own entities" on public.entities;
+create policy "Authenticated users delete own entities"
+    on public.entities for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared entities" on public.entities;
 drop policy if exists "Allow anon access on entities" on public.entities;
-create policy "Allow anon access on entities" on public.entities for all to anon using (true) with check (true);
+create policy "Anon select shared entities"
+    on public.entities for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 alter table public.relations enable row level security;
 drop policy if exists "Allow service role full access on relations" on public.relations;
-create policy "Allow service role full access on relations" on public.relations for all to service_role using (true) with check (true);
+create policy "Allow service role full access on relations"
+    on public.relations for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select relations" on public.relations;
+create policy "Authenticated users select relations"
+    on public.relations for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert relations" on public.relations;
+create policy "Authenticated users insert relations"
+    on public.relations for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own relations" on public.relations;
+create policy "Authenticated users update own relations"
+    on public.relations for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own relations" on public.relations;
+create policy "Authenticated users delete own relations"
+    on public.relations for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared relations" on public.relations;
 drop policy if exists "Allow anon access on relations" on public.relations;
-create policy "Allow anon access on relations" on public.relations for all to anon using (true) with check (true);
+create policy "Anon select shared relations"
+    on public.relations for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 alter table public.memory_entities enable row level security;
 drop policy if exists "Allow service role full access on memory_entities" on public.memory_entities;
-create policy "Allow service role full access on memory_entities" on public.memory_entities for all to service_role using (true) with check (true);
+create policy "Allow service role full access on memory_entities"
+    on public.memory_entities for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users manage memory_entities" on public.memory_entities;
+create policy "Authenticated users manage memory_entities"
+    on public.memory_entities for all to authenticated
+    using (true)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Anon select memory_entities" on public.memory_entities;
 drop policy if exists "Allow anon access on memory_entities" on public.memory_entities;
-create policy "Allow anon access on memory_entities" on public.memory_entities for all to anon using (true) with check (true);
+create policy "Anon select memory_entities"
+    on public.memory_entities for select to anon
+    using (true);
 
 -- 9.5 RPC: resolve_or_create_entity (Fuzzy Trigram & Alias Resolution)
 create or replace function resolve_or_create_entity (
@@ -598,6 +785,8 @@ create table if not exists public.transactions (
     id text primary key default ('tx_' || to_char(now(), 'YYYYMMDD_') || substr(gen_random_uuid()::text, 1, 8)),
     parent_id text references public.transactions(id) on delete set null,
     session_id text,
+    owner_id uuid references auth.users(id) on delete set null,
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')),
     initiator_id text not null,
     executor_id text not null,
     state text not null check (state in (
@@ -623,6 +812,9 @@ create table if not exists public.transactions (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+alter table public.transactions add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.transactions add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
+
 drop trigger if exists set_transactions_updated_at on public.transactions;
 create trigger set_transactions_updated_at
     before update on public.transactions
@@ -635,17 +827,46 @@ create index if not exists idx_transactions_state on public.transactions(state);
 create index if not exists idx_transactions_parent_id on public.transactions(parent_id);
 create index if not exists idx_transactions_session_id on public.transactions(session_id);
 create index if not exists idx_transactions_created_at on public.transactions(created_at desc);
+create index if not exists idx_transactions_owner_id on public.transactions(owner_id);
+create index if not exists idx_transactions_visibility on public.transactions(visibility);
 
 alter table public.transactions enable row level security;
 drop policy if exists "Allow service role full access on transactions" on public.transactions;
-create policy "Allow service role full access on transactions" on public.transactions for all to service_role using (true) with check (true);
+create policy "Allow service role full access on transactions"
+    on public.transactions for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select transactions" on public.transactions;
+create policy "Authenticated users select transactions"
+    on public.transactions for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert transactions" on public.transactions;
+create policy "Authenticated users insert transactions"
+    on public.transactions for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own transactions" on public.transactions;
+create policy "Authenticated users update own transactions"
+    on public.transactions for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own transactions" on public.transactions;
+create policy "Authenticated users delete own transactions"
+    on public.transactions for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared transactions" on public.transactions;
 drop policy if exists "Allow anon access on transactions" on public.transactions;
-create policy "Allow anon access on transactions" on public.transactions for all to anon using (true) with check (true);
+create policy "Anon select shared transactions"
+    on public.transactions for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 -- 11.2 Coordination Acts (Immutable Event Audit Log)
 create table if not exists public.coordination_acts (
     id bigint generated always as identity primary key,
     transaction_id text not null references public.transactions(id) on delete cascade,
+    owner_id uuid references auth.users(id) on delete set null,
     act_type text not null check (act_type in (
         'REQUEST',
         'PROMISE',
@@ -663,20 +884,40 @@ create table if not exists public.coordination_acts (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+alter table public.coordination_acts add column if not exists owner_id uuid references auth.users(id) on delete set null;
+
 create index if not exists idx_coordination_acts_tx on public.coordination_acts(transaction_id);
 create index if not exists idx_coordination_acts_actor on public.coordination_acts(actor_id);
 create index if not exists idx_coordination_acts_act_type on public.coordination_acts(act_type);
 create index if not exists idx_coordination_acts_created_at on public.coordination_acts(created_at desc);
+create index if not exists idx_coordination_acts_owner_id on public.coordination_acts(owner_id);
 
 alter table public.coordination_acts enable row level security;
 drop policy if exists "Allow service role full access on coordination_acts" on public.coordination_acts;
-create policy "Allow service role full access on coordination_acts" on public.coordination_acts for all to service_role using (true) with check (true);
+create policy "Allow service role full access on coordination_acts"
+    on public.coordination_acts for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select coordination_acts" on public.coordination_acts;
+create policy "Authenticated users select coordination_acts"
+    on public.coordination_acts for select to authenticated
+    using (true);
+
+drop policy if exists "Authenticated users insert coordination_acts" on public.coordination_acts;
+create policy "Authenticated users insert coordination_acts"
+    on public.coordination_acts for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Anon select coordination_acts" on public.coordination_acts;
 drop policy if exists "Allow anon access on coordination_acts" on public.coordination_acts;
-create policy "Allow anon access on coordination_acts" on public.coordination_acts for all to anon using (true) with check (true);
+create policy "Anon select coordination_acts"
+    on public.coordination_acts for select to anon
+    using (true);
 
 -- 11.3 Standing Promises (Agent Capability Catalog)
 create table if not exists public.standing_promises (
     id uuid primary key default gen_random_uuid(),
+    owner_id uuid references auth.users(id) on delete set null,
+    visibility text default 'shared' not null check (visibility in ('private', 'shared')),
     agent_id text not null,
     capability text not null,
     description text not null,
@@ -688,6 +929,9 @@ create table if not exists public.standing_promises (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+alter table public.standing_promises add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.standing_promises add column if not exists visibility text default 'shared' check (visibility in ('private', 'shared'));
+
 drop trigger if exists set_standing_promises_updated_at on public.standing_promises;
 create trigger set_standing_promises_updated_at
     before update on public.standing_promises
@@ -697,11 +941,39 @@ create trigger set_standing_promises_updated_at
 create index if not exists idx_standing_promises_agent on public.standing_promises(agent_id);
 create index if not exists idx_standing_promises_capability on public.standing_promises(capability);
 create index if not exists idx_standing_promises_active on public.standing_promises(is_active);
+create index if not exists idx_standing_promises_owner_id on public.standing_promises(owner_id);
+create index if not exists idx_standing_promises_visibility on public.standing_promises(visibility);
 
 alter table public.standing_promises enable row level security;
 drop policy if exists "Allow service role full access on standing_promises" on public.standing_promises;
-create policy "Allow service role full access on standing_promises" on public.standing_promises for all to service_role using (true) with check (true);
+create policy "Allow service role full access on standing_promises"
+    on public.standing_promises for all to service_role using (true) with check (true);
+
+drop policy if exists "Authenticated users select standing_promises" on public.standing_promises;
+create policy "Authenticated users select standing_promises"
+    on public.standing_promises for select to authenticated
+    using (owner_id = auth.uid() or visibility = 'shared' or owner_id is null);
+
+drop policy if exists "Authenticated users insert standing_promises" on public.standing_promises;
+create policy "Authenticated users insert standing_promises"
+    on public.standing_promises for insert to authenticated
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users update own standing_promises" on public.standing_promises;
+create policy "Authenticated users update own standing_promises"
+    on public.standing_promises for update to authenticated
+    using (owner_id = auth.uid() or owner_id is null)
+    with check (owner_id = auth.uid() or owner_id is null);
+
+drop policy if exists "Authenticated users delete own standing_promises" on public.standing_promises;
+create policy "Authenticated users delete own standing_promises"
+    on public.standing_promises for delete to authenticated
+    using (owner_id = auth.uid());
+
+drop policy if exists "Anon select shared standing_promises" on public.standing_promises;
 drop policy if exists "Allow anon access on standing_promises" on public.standing_promises;
-create policy "Allow anon access on standing_promises" on public.standing_promises for all to anon using (true) with check (true);
+create policy "Anon select shared standing_promises"
+    on public.standing_promises for select to anon
+    using (visibility = 'shared' or owner_id is null);
 
 

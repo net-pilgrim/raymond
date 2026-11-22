@@ -288,6 +288,20 @@ Autonomous agent handover protocol based on **Jan Dietz's DEMO Transaction Patte
 
 ---
 
+## 🔒 Security Model & Multi-Tenancy Roadmap
+
+> [!NOTE]
+> **Single-Tenant Today (v1.0 & v1.1); Multi-Tenant in v1.2**
+>
+> - **Current Model**: Raymond currently operates as a single-tenant system where calling agents and UI viewers authenticate using a shared Supabase `service_role` (secret) or `anon` (publishable) key. All agents with access share the same memory and knowledge graph namespace within your Supabase project.
+> - **Roadmap to v1.2**: Transitioning to real per-agent and per-user identity:
+>   1. **Row Level Security (RLS)**: Enforcing row-level ownership (`owner_id uuid references auth.users`) across `memories`, `entities`, `relations`, `skills`, and `transactions` with private vs shared spaces.
+>   2. **Agent Registry (`public.agents`)**: Clean separation between human Supabase Auth users and autonomous agents owned by those users.
+>   3. **UI Authentication**: Magic link and OAuth sessions via `@supabase/supabase-js` restricting UI visibility to owned + shared data.
+>   4. **Per-Agent JWT & Token Auth on MCP**: Every tool call authenticated with a scoped JWT attributing actions directly to individual agents and their owner.
+
+---
+
 ## ⚙️ Configuration Guide
 
 ### 1. Supabase Setup
