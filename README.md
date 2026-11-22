@@ -291,14 +291,22 @@ Autonomous agent handover protocol based on **Jan Dietz's DEMO Transaction Patte
 ## 🔒 Security Model & Multi-Tenancy Roadmap
 
 > [!NOTE]
-> **Single-Tenant Today (v1.0 & v1.1); Multi-Tenant in v1.2**
+> **Status: v1.2 Multi-Tenant Auth Implemented**
 >
-> - **Current Model**: Raymond currently operates as a single-tenant system where calling agents and UI viewers authenticate using a shared Supabase `service_role` (secret) or `anon` (publishable) key. All agents with access share the same memory and knowledge graph namespace within your Supabase project.
-> - **Roadmap to v1.2**: Transitioning to real per-agent and per-user identity:
->   1. **Row Level Security (RLS)**: Enforcing row-level ownership (`owner_id uuid references auth.users`) across `memories`, `entities`, `relations`, `skills`, and `transactions` with private vs shared spaces.
->   2. **Agent Registry (`public.agents`)**: Clean separation between human Supabase Auth users and autonomous agents owned by those users.
->   3. **UI Authentication**: Magic link and OAuth sessions via `@supabase/supabase-js` restricting UI visibility to owned + shared data.
->   4. **Per-Agent JWT & Token Auth on MCP**: Every tool call authenticated with a scoped JWT attributing actions directly to individual agents and their owner.
+> Raymond has transitioned from single-tenant shared service keys to real per-agent and per-user identity powered by Supabase Auth and Row Level Security:
+>
+> - ✅ **Phase 0 — Baseline Hygiene**: Removed stray artifacts, sanitized documentation, documented threat and tenancy models.
+> - ✅ **Phase 1 — RLS Foundation & Agents Registry**: Created `public.agents` table; added `owner_id` and `visibility` across memories, entities, relations, skills, and transactions; enforced 3-tier RLS policies (service_role, authenticated, anon).
+> - ✅ **Phase 2 — Supabase Auth on the UI**: Integrated `@supabase/supabase-js` into `raymond-ui`; added email magic link and OAuth auth gate; scoped viewer queries via user JWTs; kept offline `file://` drag-and-drop mode intact.
+> - ✅ **Phase 3 — Auth on the MCP Edge Function**: Implemented JWT verification via `supabase.auth.getUser()`; identity auto-stamping (`owner_id = user.id`); defense-in-depth deletion checks; turnkey client config generator for Antigravity, Claude, and Cursor.
+> - 📋 **Phase 4 — Entity Canonicalization [TODO / Planned]**:
+>   - Add `canonical_id` self-reference on `entities` and `public.entity_aliases` table.
+>   - Multi-step fuzzy resolution (lowercase, strip punctuation, alias lookup, trigram match).
+>   - `merge_entities` MCP tool + UI inspector merge action with dry-run preview of affected edges.
+> - 🔄 **Phase 5 — Tests, CI & Hardening [In Progress]**:
+>   - Deno auth guard and state-machine tests.
+>   - Free-tier rate limiting and quota write caps.
+>   - Strictness knobs (`MCP_REQUIRE_AUTH=true`).
 
 ---
 

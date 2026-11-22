@@ -2659,6 +2659,7 @@ async function verifyAuth(
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const allowLegacy = Deno.env.get("MCP_LEGACY_AUTH") === "on" || Deno.env.get("MCP_LEGACY_AUTH") === "true";
+  const requireStrictAuth = Deno.env.get("MCP_REQUIRE_AUTH") === "true" || Deno.env.get("MCP_REQUIRE_AUTH") === "on";
 
   const authHeader = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const apiKeyHeader = req.headers.get("apikey");
@@ -2697,8 +2698,8 @@ async function verifyAuth(
     // Continue to check fallback
   }
 
-  // 3. Fallback: Anon key (only if legacy auth allowed or anon development)
-  if ((allowLegacy || !serviceKey) && anonKey && provided === anonKey) {
+  // 3. Fallback: Anon key (only if MCP_REQUIRE_AUTH is false AND (legacy auth allowed or local dev))
+  if (!requireStrictAuth && (allowLegacy || !serviceKey) && anonKey && provided === anonKey) {
     return {
       authContext: {
         isLegacyAuth: true,
