@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { User } from '@supabase/supabase-js';
   import Navbar from './lib/components/Navbar.svelte';
   import KanbanBoard from './lib/components/KanbanBoard.svelte';
   import GraphView from './lib/components/GraphView.svelte';
@@ -7,9 +8,11 @@
   import InspectorDrawer from './lib/components/InspectorDrawer.svelte';
   import SettingsModal from './lib/components/SettingsModal.svelte';
   import ConnectModal from './lib/components/ConnectModal.svelte';
+  import AuthModal from './lib/components/AuthModal.svelte';
   import {
     fetchTransactions, fetchGraphData, getStoredCredentials,
-    createRelationInDb, deleteRelationFromDb, deleteEntityFromDb
+    createRelationInDb, deleteRelationFromDb, deleteEntityFromDb,
+    getCurrentUser, onAuthStateChange
   } from './lib/supabase';
   import { DEMO_TRANSACTIONS, DEMO_GRAPH_DATA } from './lib/demoData';
   import type { Transaction, KnowledgeGraphData, Relation } from './lib/types';
@@ -17,6 +20,8 @@
   let activeTab: 'graph' | 'kanban' = 'kanban';
   let connectionStatus: 'connected' | 'demo' | 'error' = 'connected';
   let isSettingsOpen = false;
+  let isAuthModalOpen = false;
+  let currentUser: User | null = null;
 
   let isConnectModalOpen = false;
   let connectInitialSourceId = '';
@@ -30,11 +35,10 @@
   let graphViewComponent: GraphView | null = null;
 
   async function loadData() {
-    const creds = getStoredCredentials();
     try {
       const [txs, gData] = await Promise.all([
-        fetchTransactions(creds.url, creds.key),
-        fetchGraphData(creds.url, creds.key)
+        fetchTransactions(),
+        fetchGraphData()
       ]);
       transactions = txs;
       graphData = gData;
@@ -117,8 +121,56 @@
     isSettingsOpen = false;
   }
 
+  // Support offline drag-and-drop of local graph JSON export
+  function handleWindowDrop(e: DragEvent) {
+    e.preventDefault();
+    if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.json')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target?.result as string);
+          if (parsed && (parsed.entities || parsed.relations)) {
+            graphData = {
+              entities: parsed.entities || [],
+              relations: parsed.relations || [],
+              memories: parsed.memories || [],
+              memory_entities: parsed.memory_entities || []
+            };
+            connectionStatus = 'demo';
+          }
+        } catch (err) {
+          console.error('Failed to parse dropped graph JSON:', err);
+        }
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  function handleWindowDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
   onMount(() => {
-    loadData();
+    getCurrentUser().then(u => {
+      currentUser = u;
+      loadData();
+    });
+
+    const sub = onAuthStateChange((u) => {
+      currentUser = u;
+      loadData();
+    });
+
+    window.addEventListener('drop', handleWindowDrop);
+    window.addEventListener('dragover', handleWindowDragOver);
+
+    return () => {
+      sub.unsubscribe();
+      window.removeEventListener('drop', handleWindowDrop);
+      window.removeEventListener('dragover', handleWindowDragOver);
+    };
   });
 </script>
 
@@ -126,8 +178,10 @@
   <Navbar
     bind:activeTab
     {connectionStatus}
+    {currentUser}
     onRefresh={loadData}
     onOpenSettings={() => (isSettingsOpen = true)}
+    onOpenAuth={() => (isAuthModalOpen = true)}
   />
 
   <main class="main-content">
@@ -178,6 +232,13 @@
     onClose={() => (isSettingsOpen = false)}
     onCredentialsSaved={loadData}
     onLoadDemo={handleLoadDemo}
+  />
+
+  <AuthModal
+    isOpen={isAuthModalOpen}
+    {currentUser}
+    onClose={() => (isAuthModalOpen = false)}
+    onAuthSuccess={loadData}
   />
 </div>
 

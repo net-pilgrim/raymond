@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { Network, LayoutList, RefreshCw, Settings, CheckCircle2, AlertTriangle, Radio } from '@lucide/svelte';
+  import { Network, LayoutList, RefreshCw, Settings, CheckCircle2, AlertTriangle, Radio, Shield, User as UserIcon } from '@lucide/svelte';
+  import type { User } from '@supabase/supabase-js';
 
   export let activeTab: 'graph' | 'kanban' = 'kanban';
   export let connectionStatus: 'connected' | 'demo' | 'error' = 'connected';
+  export let currentUser: User | null = null;
   export let onRefresh: () => void;
   export let onOpenSettings: () => void;
+  export let onOpenAuth: () => void;
 </script>
 
 <header class="navbar">
@@ -36,6 +39,19 @@
   </nav>
 
   <div class="nav-actions">
+    <!-- Auth Status / Account Button -->
+    {#if currentUser}
+      <button class="user-chip-btn font-mono" on:click={onOpenAuth} title="Account & Registered Agents">
+        <span class="user-avatar-tiny">{currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'U'}</span>
+        <span class="user-chip-email">{currentUser.email}</span>
+      </button>
+    {:else}
+      <button class="action-btn auth-btn" on:click={onOpenAuth} title="Sign in with Supabase Auth">
+        <Shield size={14} class="auth-icon" />
+        <span class="auth-text">Sign In</span>
+      </button>
+    {/if}
+
     <div class="status-indicator" class:connected={connectionStatus === 'connected'} class:demo={connectionStatus === 'demo'} class:error={connectionStatus === 'error'}>
       <span class="status-dot"></span>
       <span class="status-label">
@@ -192,6 +208,63 @@
     background: rgba(30, 41, 59, 1);
     color: var(--text-primary);
     border-color: var(--border-strong);
+  }
+
+  .auth-btn {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--brand-400);
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+
+  .auth-btn:hover {
+    background: rgba(16, 185, 129, 0.25);
+    color: #ffffff;
+  }
+
+  .auth-text {
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  :global(.auth-icon) {
+    color: var(--brand-400);
+  }
+
+  .user-chip-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--radius-full);
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border-medium);
+    color: var(--text-primary);
+    font-size: 0.72rem;
+    max-width: 180px;
+  }
+
+  .user-chip-btn:hover {
+    background: rgba(30, 41, 59, 1);
+    border-color: var(--brand-500);
+  }
+
+  .user-avatar-tiny {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--brand-500);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  .user-chip-email {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .settings-btn .settings-text {

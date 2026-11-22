@@ -52,7 +52,7 @@
 
       <div class="modal-body">
         <p class="modal-desc">
-          Configure your Supabase endpoint and API key. Credentials remain local in your browser's <code class="font-mono">localStorage</code>.
+          Configure your Supabase endpoint and publishable anon key. Credentials remain local in your browser's <code class="font-mono">localStorage</code>. User authentication and agent identity are managed securely via Supabase Auth sessions.
         </p>
 
         <div class="form-group">
@@ -67,12 +67,12 @@
         </div>
 
         <div class="form-group">
-          <label for="sb-key">Supabase API Key (Anon / Service Role)</label>
+          <label for="sb-key">Supabase Publishable Anon Key</label>
           <input
             id="sb-key"
             type="password"
             bind:value={supabaseKey}
-            placeholder="eyJhbGciOi..."
+            placeholder="sb_publishable_... or anon key"
             class="font-mono"
           />
         </div>

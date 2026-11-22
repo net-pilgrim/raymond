@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.77.0",
+    "@supabase/supabase-js": "^2.119.2",
     "marked": "^18.2.1",
     "vis-data": "^8.0.6",
     "vis-network": "^10.1.5"

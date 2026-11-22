@@ -50,8 +50,21 @@ export interface Transaction {
   acts?: CoordinationAct[];
 }
 
+export interface Agent {
+  id: string;
+  owner_id: string;
+  name: string;
+  display_name?: string | null;
+  api_key_hash?: string | null;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Entity {
   id: string;
+  owner_id?: string | null;
+  visibility?: 'private' | 'shared';
   name: string;
   type: 'concept' | 'component' | 'technology' | 'decision' | 'agent' | 'system' | 'tool' | 'memory' | string;
   aliases?: string[];
@@ -62,6 +75,8 @@ export interface Entity {
 
 export interface Relation {
   id: string;
+  owner_id?: string | null;
+  visibility?: 'private' | 'shared';
   src?: string;
   dst?: string;
   source_id?: string;
@@ -74,6 +89,8 @@ export interface Relation {
 
 export interface Memory {
   id: string;
+  owner_id?: string | null;
+  visibility?: 'private' | 'shared';
   content: string;
   agent_id?: string;
   author_agent?: string;
