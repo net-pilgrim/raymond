@@ -3,7 +3,7 @@
   import type { KnowledgeGraphData, Entity } from '../types';
   import { Network } from 'vis-network';
   import { DataSet } from 'vis-data';
-  import { Search, ZoomIn, ZoomOut, Maximize2, Play, Pause, GitFork } from '@lucide/svelte';
+  import { Search, ZoomIn, ZoomOut, Maximize2, Play, Pause, GitFork, Activity } from '@lucide/svelte';
 
   export let graphData: KnowledgeGraphData;
   export let onSelectEntity: (entity: any) => void;
@@ -13,6 +13,9 @@
   let isPhysicsFrozen = false;
   let isDagMode = false;
   let searchQuery = '';
+
+  let nodesCount = 0;
+  let edgesCount = 0;
 
   const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
     concept: { bg: '#1e3a8a', border: '#3b82f6', text: '#93c5fd' },
@@ -28,7 +31,35 @@
   function initNetwork() {
     if (!container || !graphData) return;
 
-    const nodesArray = graphData.entities.map(e => {
+    // 1. Gather unlinked gray memory nodes
+    const linkedMemIds = new Set<string>();
+    const existingEntityIds = new Set(graphData.entities.map(e => e.id));
+
+    (graphData.memory_entities || []).forEach(me => {
+      if (me.memory_id && existingEntityIds.has(me.entity_id)) linkedMemIds.add(me.memory_id);
+    });
+    (graphData.relations || []).forEach((r: any) => {
+      if (r.memory_id) linkedMemIds.add(r.memory_id);
+    });
+
+    const unlinkedMemoryNodes = (graphData.memories || [])
+      .filter(m => !linkedMemIds.has(m.id))
+      .map(m => ({
+        id: m.id,
+        name: (m.content || 'Memory').slice(0, 36) + (m.content?.length > 36 ? '...' : ''),
+        type: 'memory',
+        content: m.content,
+        author_agent: m.author_agent,
+        category: m.category,
+        tags: m.tags,
+        created_at: m.created_at
+      }));
+
+    const allGraphNodes = [...graphData.entities, ...unlinkedMemoryNodes];
+    const nodeIds = new Set(allGraphNodes.map(n => n.id));
+
+    // 2. Build Vis Node dataset
+    const nodesArray = allGraphNodes.map(e => {
       const color = TYPE_COLORS[e.type] || { bg: '#1e293b', border: '#475569', text: '#e2e8f0' };
       const isMemory = e.type === 'memory';
       return {
@@ -41,55 +72,98 @@
           border: color.border,
           highlight: { background: color.border, border: '#ffffff' }
         },
-        font: { color: color.text, face: 'Plus Jakarta Sans', size: 12 },
+        font: {
+          color: color.text,
+          face: 'Plus Jakarta Sans',
+          size: isMemory ? 11 : 13,
+          strokeWidth: 3,
+          strokeColor: '#090d16'
+        },
         margin: isMemory ? 8 : undefined,
         borderWidth: 2,
+        shadow: {
+          enabled: true,
+          color: 'rgba(0, 0, 0, 0.6)',
+          size: 10,
+          x: 0,
+          y: 2
+        },
         data: e,
       };
     });
 
-    const edgesArray = graphData.relations.map(r => {
-      const isSuperseded = Boolean(r.valid_to);
-      return {
-        id: r.id,
-        from: r.source_id,
-        to: r.target_id,
-        label: r.predicate,
-        arrows: 'to',
-        color: {
-          color: isSuperseded ? '#f43f5e' : '#38bdf8',
-          highlight: '#ffffff',
-          opacity: isSuperseded ? 0.45 : 0.85
-        },
-        dashes: isSuperseded,
-        font: { color: '#94a3b8', face: 'JetBrains Mono', size: 10, align: 'middle' },
-        data: r,
-      };
-    });
+    // 3. Build Vis Edges dataset (mapping src/dst from Supabase or source_id/target_id)
+    const edgesArray = (graphData.relations || [])
+      .map(r => {
+        const from = r.src || (r as any).source_id || (r as any).from;
+        const to = r.dst || (r as any).target_id || (r as any).to;
+        if (!from || !to) return null;
+        if (!nodeIds.has(from) || !nodeIds.has(to)) return null;
+
+        const isSuperseded = Boolean(r.valid_to);
+        return {
+          id: r.id,
+          from,
+          to,
+          label: r.predicate,
+          arrows: {
+            to: { enabled: true, scaleFactor: 0.85 }
+          },
+          color: {
+            color: isSuperseded ? '#ef4444' : '#38bdf8',
+            highlight: isSuperseded ? '#fda4af' : '#67e8f9',
+            opacity: isSuperseded ? 0.45 : 0.95
+          },
+          width: isSuperseded ? 1.5 : 2,
+          dashes: isSuperseded ? [5, 5] : false,
+          font: {
+            color: isSuperseded ? '#fca5a5' : '#94a3b8',
+            face: 'JetBrains Mono',
+            size: 10,
+            align: 'middle',
+            strokeWidth: 3,
+            strokeColor: '#090d16'
+          },
+          data: r,
+        };
+      })
+      .filter(Boolean);
+
+    nodesCount = nodesArray.length;
+    edgesCount = edgesArray.length;
 
     const data = {
       nodes: new DataSet(nodesArray),
-      edges: new DataSet(edgesArray)
+      edges: new DataSet(edgesArray as any)
     };
 
     const options = {
+      nodes: {
+        borderWidth: 2,
+        shadow: true
+      },
+      edges: {
+        smooth: {
+          type: 'continuous'
+        }
+      },
       physics: {
         enabled: !isPhysicsFrozen,
         solver: 'forceAtlas2Based',
         forceAtlas2Based: {
-          gravitationalConstant: -45,
+          gravitationalConstant: -55,
           centralGravity: 0.008,
-          springLength: 95,
+          springLength: 105,
           springConstant: 0.18,
           damping: 0.95
         },
-        stabilization: { iterations: 100 }
+        stabilization: { iterations: 120 }
       },
       layout: {
         hierarchical: isDagMode ? {
           direction: 'UD',
           sortMethod: 'directed',
-          levelSeparation: 120,
+          levelSeparation: 130,
           nodeSpacing: 160
         } : false
       },
@@ -110,7 +184,7 @@
     network.on('click', params => {
       if (params.nodes.length > 0) {
         const nodeId = params.nodes[0];
-        const ent = graphData.entities.find(e => e.id === nodeId);
+        const ent = allGraphNodes.find(e => e.id === nodeId);
         if (ent) onSelectEntity(ent);
       }
     });
@@ -184,6 +258,13 @@
     </div>
 
     <div class="tools-row">
+      <div class="stats-pill font-mono">
+        <Activity size={13} class="stats-icon" />
+        <span>{nodesCount} entities</span>
+        <span class="dot">·</span>
+        <span class="edges-text">{edgesCount} relations</span>
+      </div>
+
       <button class="tool-btn" class:active={isDagMode} on:click={toggleDagMode} title="Toggle Hierarchical DAG Mode">
         <GitFork size={14} />
         <span>{isDagMode ? 'DAG Mode' : 'Organic Layout'}</span>
@@ -289,6 +370,31 @@
     padding: 3px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-subtle);
+  }
+
+  .stats-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+  }
+
+  :global(.stats-icon) {
+    color: var(--cyan-400);
+  }
+
+  .stats-pill .edges-text {
+    color: var(--cyan-400);
+    font-weight: 600;
+  }
+
+  .stats-pill .dot {
+    opacity: 0.4;
   }
 
   .tool-btn {

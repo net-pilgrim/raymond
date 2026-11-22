@@ -2,7 +2,7 @@ import type { Transaction, KnowledgeGraphData, CoordinationAct } from './types';
 import { DEMO_TRANSACTIONS, DEMO_GRAPH_DATA } from './demoData';
 
 export const DEFAULT_SUPABASE_URL = 'https://zmocedvkqrcxwkthmwql.supabase.co';
-export const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptb2NlZHZrcXJjeHdrdGhtd3FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE2OTIxMzAsImV4cCI6MjA0NzI2ODEzMH0.e7Fv5L5a4C06-tPfnU_U48h88e_G8qX74P_9m78f8vE';
+export const DEFAULT_SUPABASE_KEY = 'sb_publishable_Mtm9durpa0BqJilrDDP3Sw_emjdGVfY';
 
 export function getStoredCredentials(): { url: string; key: string } {
   const hash = window.location.hash.replace(/^#/, '');
@@ -14,6 +14,12 @@ export function getStoredCredentials(): { url: string; key: string } {
 
   let url = urlParam || localStorage.getItem('raymond_supabase_url') || DEFAULT_SUPABASE_URL;
   let key = keyParam || localStorage.getItem('raymond_supabase_key') || DEFAULT_SUPABASE_KEY;
+
+  // Clean stale/expired JWT tokens or invalid placeholders
+  if (key && (key.startsWith('eyJhbGci') || key.includes('xyzcompany') || key.length < 20)) {
+    key = DEFAULT_SUPABASE_KEY;
+    localStorage.setItem('raymond_supabase_key', key);
+  }
 
   if (urlParam) localStorage.setItem('raymond_supabase_url', urlParam);
   if (keyParam) localStorage.setItem('raymond_supabase_key', keyParam);

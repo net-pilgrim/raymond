@@ -270,14 +270,14 @@ export const DEMO_GRAPH_DATA: KnowledgeGraphData = {
     { id: 'm1', name: 'Memory: Stateless Agent Coordination', type: 'memory' }
   ],
   relations: [
-    { id: 'r1', source_id: 'e1', target_id: 'e2', predicate: 'implements', valid_from: '2026-11-15T00:00:00Z' },
-    { id: 'r2', source_id: 'e2', target_id: 'e3', predicate: 'persists_to', valid_from: '2026-11-15T00:00:00Z' },
-    { id: 'r3', source_id: 'e2', target_id: 'e4', predicate: 'enforces', valid_from: '2026-11-22T00:00:00Z' },
-    { id: 'r4', source_id: 'e1', target_id: 'e5', predicate: 'visualized_by', valid_from: '2026-11-22T00:00:00Z' },
-    { id: 'r5', source_id: 'e2', target_id: 'e6', predicate: 'embeds_via', valid_from: '2026-11-15T00:00:00Z' },
-    { id: 'r6', source_id: 'e7', target_id: 'e4', predicate: 'coordinates_via', valid_from: '2026-11-22T00:00:00Z' },
-    { id: 'r7', source_id: 'e5', target_id: 'e8', predicate: 'follows', valid_from: '2026-11-22T00:00:00Z' },
-    { id: 'r8', source_id: 'm1', target_id: 'e4', predicate: 'references', valid_from: '2026-11-22T00:00:00Z' }
+    { id: 'r1', src: 'e1', dst: 'e2', source_id: 'e1', target_id: 'e2', predicate: 'implements', valid_from: '2026-11-15T00:00:00Z' },
+    { id: 'r2', src: 'e2', dst: 'e3', source_id: 'e2', target_id: 'e3', predicate: 'persists_to', valid_from: '2026-11-15T00:00:00Z' },
+    { id: 'r3', src: 'e2', dst: 'e4', source_id: 'e2', target_id: 'e4', predicate: 'enforces', valid_from: '2026-11-22T00:00:00Z' },
+    { id: 'r4', src: 'e1', dst: 'e5', source_id: 'e1', target_id: 'e5', predicate: 'visualized_by', valid_from: '2026-11-22T00:00:00Z' },
+    { id: 'r5', src: 'e2', dst: 'e6', source_id: 'e2', target_id: 'e6', predicate: 'embeds_via', valid_from: '2026-11-15T00:00:00Z' },
+    { id: 'r6', src: 'e7', dst: 'e4', source_id: 'e7', target_id: 'e4', predicate: 'coordinates_via', valid_from: '2026-11-22T00:00:00Z' },
+    { id: 'r7', src: 'e5', dst: 'e8', source_id: 'e5', target_id: 'e8', predicate: 'follows', valid_from: '2026-11-22T00:00:00Z' },
+    { id: 'r8', src: 'm1', dst: 'e4', source_id: 'm1', target_id: 'e4', predicate: 'references', valid_from: '2026-11-22T00:00:00Z' }
   ],
   memories: [
     {

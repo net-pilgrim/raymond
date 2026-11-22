@@ -62,10 +62,12 @@ export interface Entity {
 
 export interface Relation {
   id: string;
-  source_id: string;
-  target_id: string;
+  src?: string;
+  dst?: string;
+  source_id?: string;
+  target_id?: string;
   predicate: string;
-  valid_from: string;
+  valid_from?: string;
   valid_to?: string | null;
   metadata?: Record<string, any>;
 }
