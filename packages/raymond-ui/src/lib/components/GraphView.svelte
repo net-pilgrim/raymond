@@ -16,11 +16,18 @@
   export function focusNeighborhood(entityId: string) {
     focusCenterEntityId = entityId;
     focusHopDepth = 1;
-    renderGraph();
+    updateGraph();
+    if (network) {
+      network.focus(entityId, { scale: 1.2, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+    }
   }
 
   let container: HTMLDivElement;
   let network: Network | null = null;
+  let nodesDataSet = new DataSet<any>([]);
+  let edgesDataSet = new DataSet<any>([]);
+  let lastGraphDataRef: KnowledgeGraphData | null = null;
+
   let isPhysicsActive = true;
   let isDagMode = false;
   let showSuperseded = true;
@@ -164,9 +171,9 @@
     return nodeId;
   }
 
-  // --- GRAPH RENDERING ---
-  function renderGraph() {
-    if (!container || !graphData) return;
+  // --- GRAPH RENDERING & DATASET UPDATES ---
+  function updateGraph() {
+    if (!network || !graphData) return;
 
     const unlinkedMems = getUnlinkedMemoryEntities();
     const allGraphNodes = [...(graphData.entities || []), ...unlinkedMems];
@@ -290,9 +297,20 @@
       };
     });
 
+    // Update persistent DataSets in-place to completely prevent screen flickering
+    nodesDataSet.clear();
+    nodesDataSet.add(nodeItems);
+    edgesDataSet.clear();
+    edgesDataSet.add(edgeItems);
+  }
+
+  // --- INITIALIZE VIS NETWORK ONCE ---
+  function initNetwork() {
+    if (!container || network) return;
+
     const data = {
-      nodes: new DataSet(nodeItems),
-      edges: new DataSet(edgeItems)
+      nodes: nodesDataSet,
+      edges: edgesDataSet
     };
 
     const options = {
@@ -328,21 +346,18 @@
       }
     };
 
-    if (network) {
-      network.destroy();
-    }
-
     network = new Network(container, data, options as any);
 
     // Click handler
     network.on('click', params => {
       if (params.nodes && params.nodes.length > 0) {
         const nodeId = params.nodes[0];
+        const allGraphNodes = [...(graphData?.entities || []), ...getUnlinkedMemoryEntities()];
         const ent = allGraphNodes.find(e => e.id === nodeId);
         if (ent) onSelectEntity(ent);
       } else if (params.edges && params.edges.length > 0) {
         const edgeId = params.edges[0];
-        const rel = (graphData.relations || []).find(r => r.id === edgeId);
+        const rel = (graphData?.relations || []).find(r => r.id === edgeId);
         if (rel) {
           const srcName = getNodeDisplayName(rel.src || (rel as any).source_id);
           const dstName = getNodeDisplayName(rel.dst || (rel as any).target_id);
@@ -361,9 +376,10 @@
     network.on('doubleClick', params => {
       if (params.nodes && params.nodes.length > 0) {
         const nodeId = params.nodes[0];
-        focusCenterEntityId = nodeId;
+        focusCenterEntityId = (focusCenterEntityId === nodeId) ? null : nodeId;
         focusHopDepth = 1;
-        renderGraph();
+        updateGraph();
+        network?.focus(nodeId, { scale: 1.2, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
       }
     });
 
@@ -429,6 +445,8 @@
       draggedNodeId = null;
       hoverTargetNodeId = null;
     });
+
+    updateGraph();
   }
 
   // --- DRAG-TO-CONNECT RELATION CREATION ---
@@ -460,13 +478,13 @@
     };
 
     graphData.relations = [...(graphData.relations || []), newRel];
-    renderGraph();
+    updateGraph();
 
     triggerToast(`Connected <b>${srcName}</b> ➔ <code>connected_to</code> ➔ <b>${dstName}</b>`, 'success', {
       label: 'Undo',
       onClick: () => {
         graphData.relations = graphData.relations.filter(r => r.id !== newRel.id);
-        renderGraph();
+        updateGraph();
         triggerToast('Link creation undone', 'info');
       }
     });
@@ -480,23 +498,35 @@
 
   function toggleDagMode() {
     isDagMode = !isDagMode;
-    renderGraph();
+    if (network) {
+      network.setOptions({
+        layout: {
+          hierarchical: isDagMode ? {
+            direction: 'UD',
+            sortMethod: 'directed',
+            levelSeparation: 130,
+            nodeSpacing: 160
+          } : false
+        }
+      });
+      updateGraph();
+    }
   }
 
   function toggleSuperseded() {
     showSuperseded = !showSuperseded;
-    renderGraph();
+    updateGraph();
   }
 
   function clearFocusMode() {
     focusCenterEntityId = null;
-    renderGraph();
+    updateGraph();
     setTimeout(fitGraph, 200);
   }
 
   function setHopDepth(depth: number) {
     focusHopDepth = depth;
-    renderGraph();
+    updateGraph();
   }
 
   function toggleTypeFilter(type: string) {
@@ -507,7 +537,7 @@
       activeTypeFilters.add(key);
     }
     activeTypeFilters = new Set(activeTypeFilters);
-    renderGraph();
+    updateGraph();
   }
 
   function handleSearch() {
@@ -524,17 +554,17 @@
 
   function zoomIn() {
     if (!network) return;
-    network.moveTo({ scale: network.getScale() * 1.3, animation: { duration: 250 } });
+    network.moveTo({ scale: network.getScale() * 1.3, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
   }
 
   function zoomOut() {
     if (!network) return;
-    network.moveTo({ scale: network.getScale() / 1.3, animation: { duration: 250 } });
+    network.moveTo({ scale: network.getScale() / 1.3, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
   }
 
   function fitGraph() {
     if (!network) return;
-    network.fit({ animation: { duration: 500 } });
+    network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
   }
 
   function exportCanvasToPng() {
@@ -548,16 +578,21 @@
     triggerToast('Screenshot exported successfully!', 'success');
   }
 
-  $: if (graphData && container) {
-    renderGraph();
+  // Reactive data sync when graphData prop changes externally
+  $: if (network && graphData && graphData !== lastGraphDataRef) {
+    lastGraphDataRef = graphData;
+    updateGraph();
   }
 
   onMount(() => {
-    renderGraph();
+    initNetwork();
   });
 
   onDestroy(() => {
-    if (network) network.destroy();
+    if (network) {
+      network.destroy();
+      network = null;
+    }
     if (toastTimeout) clearTimeout(toastTimeout);
   });
 </script>

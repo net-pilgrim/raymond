@@ -75,9 +75,12 @@ export interface Relation {
 export interface Memory {
   id: string;
   content: string;
+  agent_id?: string;
   author_agent?: string;
+  session_id?: string;
   category?: string;
   tags?: string[];
+  metadata?: Record<string, any>;
   created_at: string;
 }
 

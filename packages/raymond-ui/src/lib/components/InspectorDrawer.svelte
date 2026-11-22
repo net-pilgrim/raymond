@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     X, Network, FileText, Calendar, Tag, User, Trash2,
-    Link2, ArrowRight, ArrowLeft, AlertTriangle, Eye, ShieldAlert
+    Link2, ArrowRight, ArrowLeft, AlertTriangle, BookOpen, Layers
   } from '@lucide/svelte';
   import { marked } from 'marked';
   import type { Entity, Relation, Memory } from '../types';
@@ -35,6 +35,21 @@
     const dst = r.dst || (r as any).target_id;
     return selectedItem && dst === selectedItem.id;
   });
+
+  // Extract Markdown Description on the Entity itself
+  $: entityMarkdown = (() => {
+    if (!selectedItem || selectedItem.type === 'memory') return '';
+    return (
+      selectedItem.metadata?.description ||
+      selectedItem.metadata?.summary ||
+      selectedItem.metadata?.notes ||
+      selectedItem.metadata?.content ||
+      selectedItem.metadata?.statement ||
+      selectedItem.metadata?.details ||
+      selectedItem.description ||
+      ''
+    );
+  })();
 
   // Grounded memories
   $: groundedMemories = (() => {
@@ -114,14 +129,14 @@
       </div>
 
       <div class="drawer-content">
-        <!-- Memory Content View -->
+        <!-- Memory Content View (for Gray unlinked memories) -->
         {#if selectedItem.type === 'memory'}
           <div class="memory-card">
             <div class="meta-row font-mono">
-              {#if selectedItem.author_agent || selectedItem.metadata?.author_agent}
+              {#if selectedItem.agent_id || selectedItem.author_agent || selectedItem.metadata?.agent_id}
                 <span class="meta-pill author">
                   <User size={12} />
-                  <span>{selectedItem.author_agent || selectedItem.metadata?.author_agent}</span>
+                  <span>{selectedItem.agent_id || selectedItem.author_agent || selectedItem.metadata?.agent_id}</span>
                 </span>
               {/if}
               {#if selectedItem.category || selectedItem.metadata?.category}
@@ -141,9 +156,13 @@
             <div class="markdown-body prose-dark">
               {@html renderMarkdown(selectedItem.content || selectedItem.metadata?.full_content || selectedItem.name)}
             </div>
+
+            <div class="unlinked-tip font-mono">
+              💡 Drag this memory node onto any entity node to link and ground it permanently!
+            </div>
           </div>
         {:else}
-          <!-- Entity Details View -->
+          <!-- Entity Details Card -->
           <div class="entity-details">
             <div class="detail-row">
               <span class="label">Entity ID</span>
@@ -163,13 +182,24 @@
                 </div>
               </div>
             {/if}
-            {#if selectedItem.metadata && Object.keys(selectedItem.metadata).length > 0}
-              <div class="detail-section">
-                <span class="label">Metadata</span>
-                <pre class="meta-json font-mono">{JSON.stringify(selectedItem.metadata, null, 2)}</pre>
-              </div>
-            {/if}
+            <div class="detail-row">
+              <span class="label">Connections</span>
+              <span class="val font-mono">{outboundRelations.length + inboundRelations.length} links ({groundedMemories.length} memories)</span>
+            </div>
           </div>
+
+          <!-- Entity Markdown Description / Knowledge Notes -->
+          {#if entityMarkdown}
+            <div class="section">
+              <div class="section-title">
+                <BookOpen size={14} class="sec-icon amber" />
+                <span>Description & Knowledge Notes</span>
+              </div>
+              <div class="markdown-card prose-dark">
+                {@html renderMarkdown(entityMarkdown)}
+              </div>
+            </div>
+          {/if}
 
           <!-- Outbound Relations -->
           <div class="section">
@@ -251,7 +281,7 @@
             {/if}
           </div>
 
-          <!-- Grounded Memories -->
+          <!-- Grounded Memories (with full Markdown content) -->
           <div class="section">
             <div class="section-title">
               <FileText size={14} class="sec-icon purple" />
@@ -263,18 +293,37 @@
                   <div class="mem-snippet-card">
                     <div class="mem-meta font-mono">
                       <span class="cat-pill">{mem.category || 'general'}</span>
+                      <span class="agent-pill">👤 {mem.agent_id || mem.author_agent || 'agent'}</span>
                       <span class="time-faint">{formatTime(mem.created_at)}</span>
                     </div>
                     <div class="mem-body prose-dark">
                       {@html renderMarkdown(mem.content)}
                     </div>
+                    {#if mem.tags && mem.tags.length > 0}
+                      <div class="mem-tags font-mono">
+                        {#each mem.tags as tag}
+                          <span class="tag-chip">#{tag}</span>
+                        {/each}
+                      </div>
+                    {/if}
                   </div>
                 {/each}
               </div>
             {:else}
-              <div class="empty-hint font-mono">No grounded memories linked</div>
+              <div class="empty-hint font-mono">No grounded memories linked to this entity</div>
             {/if}
           </div>
+
+          <!-- Raw Metadata Details (collapsible / secondary) -->
+          {#if selectedItem.metadata && Object.keys(selectedItem.metadata).length > 0}
+            <div class="section">
+              <div class="section-title">
+                <Layers size={14} class="sec-icon cyan" />
+                <span>Raw Metadata</span>
+              </div>
+              <pre class="meta-json font-mono">{JSON.stringify(selectedItem.metadata, null, 2)}</pre>
+            </div>
+          {/if}
 
           <!-- Danger Zone: Delete Entity -->
           <div class="danger-zone">
@@ -320,7 +369,7 @@
 
   .drawer-panel {
     width: 100%;
-    max-width: 520px;
+    max-width: 540px;
     height: 100%;
     background: #0f172a;
     border-left: 1px solid var(--border-medium);
@@ -413,6 +462,24 @@
     gap: 1.25rem;
   }
 
+  .markdown-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .unlinked-tip {
+    font-size: 0.7rem;
+    color: var(--cyan-400);
+    background: var(--cyan-bg);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--radius-sm);
+    margin-top: 0.5rem;
+  }
+
   .section {
     display: flex;
     flex-direction: column;
@@ -431,6 +498,7 @@
   :global(.sec-icon.cyan) { color: var(--cyan-400); }
   :global(.sec-icon.emerald) { color: var(--brand-400); }
   :global(.sec-icon.purple) { color: var(--purple-400); }
+  :global(.sec-icon.amber) { color: var(--amber-400); }
 
   .relations-list {
     display: flex;
@@ -475,7 +543,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
+    max-width: 220px;
     padding: 0;
   }
 
@@ -524,20 +592,21 @@
   }
 
   .mem-snippet-card {
-    background: rgba(30, 41, 59, 0.35);
+    background: rgba(30, 41, 59, 0.45);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    padding: 0.75rem;
+    padding: 0.85rem;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.5rem;
   }
 
   .mem-meta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.5rem;
     font-size: 0.68rem;
+    flex-wrap: wrap;
   }
 
   .cat-pill {
@@ -546,16 +615,39 @@
     background: rgba(192, 132, 252, 0.15);
     color: var(--purple-400);
     text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .agent-pill {
+    color: var(--cyan-400);
+    font-weight: 600;
   }
 
   .time-faint {
     color: var(--text-faint);
+    margin-left: auto;
+  }
+
+  .mem-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .tag-chip {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.05rem 0.35rem;
+    border-radius: 3px;
   }
 
   .entity-details {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
   }
 
   .detail-row {
@@ -590,12 +682,6 @@
     background: rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-sm);
     color: var(--cyan-400);
-  }
-
-  .detail-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
   }
 
   .meta-json {

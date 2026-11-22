@@ -95,7 +95,7 @@ export async function fetchGraphData(url?: string, key?: string): Promise<Knowle
       fetch(`${creds.url}/rest/v1/relations?select=*&limit=1500`, {
         headers: { 'apikey': creds.key, 'Authorization': `Bearer ${creds.key}` }
       }),
-      fetch(`${creds.url}/rest/v1/memories?select=id,content,author_agent,category,tags,created_at&limit=300`, {
+      fetch(`${creds.url}/rest/v1/memories?select=id,agent_id,session_id,category,content,tags,created_at,metadata&order=created_at.desc&limit=300`, {
         headers: { 'apikey': creds.key, 'Authorization': `Bearer ${creds.key}` }
       }),
       fetch(`${creds.url}/rest/v1/memory_entities?select=*&limit=1000`, {
